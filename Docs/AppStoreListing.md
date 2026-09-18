@@ -27,7 +27,7 @@ meditacion,vipassana,goenka,mindfulness,quietud,dhamma,metta,budismo,temporizado
 ## Texto promocional (máx. 170 caracteres, editable sin subir versión nueva)
 
 ```
-Meditaciones guiadas y en silencio, de 5 minutos a 8 horas, con temporizador, timelapse opcional y un aviso discreto a tus amigos cuando terminas.
+Meditaciones guiadas y en silencio, de 5 minutos a 8 horas, con temporizador y un aviso discreto a tus amigos cuando terminas.
 ```
 
 ## Descripción
@@ -41,11 +41,8 @@ Elige una duración rápida (5, 15, 30 o 60 minutos) o configura una sesión de 
 SESIONES DE GRUPO
 Incluye las instrucciones completas de Group Sitting de S. N. Goenka en inglés, en versión larga y corta, para quienes practican siguiendo una sesión de centro.
 
-PERMANECER
-Activa la cámara frontal para crear un timelapse silencioso de tu sesión, con una frase del Dhammapada en pali al terminar. Sin micrófono, con borrado automático o manual cuando quieras.
-
 AMIGOS, CON PRIVACIDAD DE VERDAD
-Si quieres, comparte con amigos cercanos el simple hecho de haber completado una meditación matutina o vespertina — nunca la duración, el audio elegido, ni tus timelapses. Las invitaciones son privadas y de solo lectura, sin enlaces públicos.
+Si quieres, comparte con amigos cercanos el simple hecho de haber completado una meditación matutina o vespertina — nunca la duración ni el audio elegido. Las invitaciones son privadas y de solo lectura, sin enlaces públicos.
 
 TU HISTORIAL, TUYO
 Todo se guarda en tu iPhone; si activas iCloud, sincroniza en tu propia base privada. Exporta o borra tu historial cuando quieras.

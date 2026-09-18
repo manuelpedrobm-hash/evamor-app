@@ -19,7 +19,7 @@ La membresía de Apple Developer tiene su propio coste anual para distribuir en 
 1. Abre `Meditacion.xcodeproj` y elige el esquema **Evamor Local** en la barra superior.
 2. En el target **Evamor Local**, abre **Signing & Capabilities**, activa la firma automática y selecciona tu *Personal Team*.
 3. Selecciona el iPhone como destino y pulsa Run. Esta variante no solicita iCloud ni Push Notifications, por lo que puede firmarse con un equipo personal.
-4. Los datos se guardan localmente. Temporizador, audio, metta, historial, recordatorios locales, cámara, movimiento y timelapse siguen disponibles. La sincronización y los avisos entre amigos permanecen inactivos hasta usar el target completo con una membresía compatible.
+4. Los datos se guardan localmente. Temporizador, audio, metta, historial y recordatorios locales siguen disponibles. La sincronización y los avisos entre amigos permanecen inactivos hasta usar el target completo con una membresía compatible.
 
 La app local usa `com.manuelbecerril.evamor.local`; el target completo conserva `com.manuelbecerril.evamor` y sus capacidades de iCloud y push.
 
@@ -67,8 +67,6 @@ Las invitaciones usan el enlace privado de CloudKit. No se ofrece un código cor
 - Al desactivar recepción se elimina la suscripción CloudKit y cualquier aviso social local pendiente o entregado.
 - Al desactivar envío, las sesiones que aún estén en la cola se sincronizan solo al historial privado y no generan señales sociales.
 - iCloud identifica técnicamente a los participantes; la app no almacena correo, teléfono, contactos, tokens APNs ni credenciales.
-- El timelapse es opcional, usa solo la cámara frontal y nunca añade una entrada de micrófono. El MP4 y su resumen de movimiento permanecen en el dispositivo; compartirlos requiere una acción explícita en la hoja del sistema.
-- Vision observa puntos corporales para estimar cambios de postura. No conserva puntos, no analiza la cara y no afirma medir ecuanimidad, concentración ni calidad espiritual.
 
 ## Pruebas
 
@@ -115,16 +113,12 @@ El registro de acceso a `manuelpedrobm-hash.github.io` lo conserva GitHub Pages 
 - Una interrupción o desconexión de auriculares pausa la práctica y exige reanudación explícita.
 - Si iOS suspende la app durante el silencio, el reloj se reconstruye desde la fecha persistida y un aviso local puede señalar el final si hay permiso.
 - Fecha, zona y franja se fijan al inicio. Las estadísticas se derivan de UUID únicos y no usan contadores acumulativos.
-- Al pulsar **Terminar antes**, la práctica se guarda como parcial con el tiempo real y la duración prevista. Suma minutos meditados, pero no cuenta para rachas, hitos ni avisos a amigos. También conserva el timelapse si llegó a capturar fotogramas.
+- Al pulsar **Terminar antes**, la práctica se guarda como parcial con el tiempo real y la duración prevista. Suma minutos meditados, pero no cuenta para rachas, hitos ni avisos a amigos.
 - El historial muestra los últimos siete días con indicadores separados de mañana y noche, calculados únicamente desde las sesiones locales.
 - El **Hilo de práctica** enlaza sesiones y permite una pausa recuperable antes de empezar de nuevo. Se deriva del historial, sin puntos, compras, rankings ni contadores sincronizables. La regla completa está en `Docs/GentleContinuity.md`.
 - Historial con resumen móvil de siete días, hitos personales y un recordatorio opcional para recuperar el hilo. Ninguna de estas funciones compara usuarios.
 - El historial puede exportarse como JSON y borrarse desde Ajustes. El borrado local es inmediato y se sincroniza con iCloud antes de subir sesiones posteriores.
 - Siri y Atajos pueden abrir una meditación con una duración indicada conservando la selección de audio.
-- **Permanecer** crea opcionalmente un timelapse local de 10, 20 o 30 segundos. Al salir o bloquear el iPhone, iOS detiene la cámara pero la sesión y el audio continúan; al volver, la captura se reanuda si el proceso sigue vivo.
-- En las compilaciones de desarrollo, **Tu sesión → Probar cámara y movimiento · 30 s** permite comprobar Permanecer sin crear una sesión ni usar iCloud. El resultado se reproduce dentro de Ecuanimidad y el archivo de prueba se elimina al cerrarlo.
-- Los timelapses de prácticas completas o parciales pueden reproducirse en la pantalla de cierre y posteriormente desde **Historial → Sesión → Ver timelapse**. Cada uno muestra una de 22 frases del Dhammapada en pali con traducción española y referencia.
-- El **Pulso de quietud** describe el movimiento visible como quietud sostenida, ajustes suaves o movimiento vivo. Todas las bandas son neutrales; no hay puntuaciones, suspensos, rankings ni comparaciones sociales.
 - La sincronización se reintenta al recuperar red, al volver a primer plano y cada 30 segundos tras un fallo mientras la app permanece activa.
 - La portada usa la identidad original **Quietud**. Mantener pulsado durante tres segundos el centro dorado revela una dedicatoria privada a Eva, un corazón con destellos, la frase «Que cada pausa te recuerde cuánto mereces sonreír» y el acrónimo `Estar · Ver · Aceptar · Meditar · Observar · Regresar`. La pantalla «Sé feliz» conserva la foto de la chica como fondo y aplica encima un degradado verde oscuro para que el texto mantenga contraste. `Docs/VisualIdentity.md` documenta la paleta y `Docs/CompletionArtwork.md` documenta ambos recursos.
 

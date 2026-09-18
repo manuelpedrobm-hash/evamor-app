@@ -18,17 +18,6 @@ Registra versión de iOS, modelo, build, cuentas iCloud y resultado. Usa dos iPh
 - Crear una cadena de tres días, dejar un día vacío y abrir al siguiente: el Hilo debe indicar que aún puede recuperarse. Completar una sesión y verificar que las cuentas enlazadas aumentan una sola vez.
 - Introducir una segunda pausa en el mismo hilo: debe comenzar un hilo nuevo sin borrar sesiones, minutos ni historial anteriores.
 
-## Permanecer y timelapse
-
-- En un iPhone real, activar `Crear timelapse`: el permiso de cámara se solicita al pulsar `Meditar`, nunca al activar el interruptor. Confirmar que no se solicita micrófono.
-- Comprobar la vista previa frontal, el espejo, la orientación vertical y el encuadre antes de empezar.
-- Completar una sesión corta con el cuerpo visible: se crea un MP4 reproducible, de hasta unos 30 segundos, y aparece `Compartir timelapse` al terminar y en el historial.
-- Repetir dejando parte del cuerpo fuera del encuadre: si no hay puntos suficientes, mostrar una observación indisponible sin puntuar negativamente.
-- Probar quietud, ajustes pequeños y varios cambios de postura. Las bandas deben ser `Quietud sostenida`, `Ajustes suaves` o `Movimiento vivo`; ninguna debe afirmar que mide ecuanimidad.
-- Abrir otra app y bloquear el iPhone: la cámara debe detenerse, pero el reloj y el audio en curso continúan. Volver y confirmar que la captura se reanuda si el proceso sigue vivo.
-- Cancelar desde el encuadre no deja MP4 ni práctica. Terminar antes durante la meditación guarda la práctica parcial y conserva el timelapse si hay fotogramas; nunca la presenta como completada.
-- Compartir mediante la hoja del sistema y confirmar que el archivo no aparece en iCloud, amigos ni otro dispositivo sin una acción explícita.
-
 ## iCloud y sincronización
 
 - Completar offline y recuperar conexión: aparece una vez en iCloud y en un segundo dispositivo del mismo usuario.

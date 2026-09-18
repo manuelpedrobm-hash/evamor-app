@@ -2,6 +2,8 @@
 
 ## Revisión del 17 de septiembre de 2026
 
+*Nota: las menciones a Permanecer/timelapse en esta sección quedaron obsoletas — ver la actualización del 18 de septiembre (tarde) más abajo, donde se retiró la función por completo.*
+
 - Nombre visible cambiado a «Ecuanimidad» sin añadir texto sobre el símbolo en la portada. EVAMOR queda solo en la dedicatoria oculta. Las duraciones rápidas 5, 15, 30 y 60 siempre responden, persisten y retiran un audio largo si no cabe.
 - Permanecer conserva cámara, timelapse y Pulso de quietud. La fotografía se mantiene en el cierre bajo un degradado que protege la legibilidad. El vídeo puede durar 10, 20 o 30 segundos, el análisis de movimiento es opcional y existen borrado automático y borrado en grupo.
 - Al bloquear el iPhone, la cámara se detiene por la política de iOS; la sesión usa su reloj persistido, mantiene el audio en curso y programa el aviso final. Al volver, la captura se reanuda si el proceso sigue vivo.
@@ -17,9 +19,9 @@
 
 ## Resultados automatizados
 
-- `xcodebuild test`: 35 pruebas unitarias/integración aprobadas. Cubren 7.616 combinaciones de minuto/audio, persistencia, reproducción, catálogo, perfiles, acceso, prácticas parciales, una señal por cada sesión completada, amigos, borrado de timelapses, pali y sincronización.
+- `xcodebuild test`: 31 pruebas unitarias/integración aprobadas. Cubren 7.616 combinaciones de minuto/audio, persistencia, reproducción, catálogo, perfiles, acceso, prácticas parciales, una señal por cada sesión completada, amigos y sincronización.
 - Dos pruebas de interfaz cubren el acceso de antiguo alumno y el recorrido bienvenida → duraciones rápidas → configuración → sesión → pausa/reanudación → guardado parcial.
-- `Tools/verify_project.py`: 85 comprobaciones estáticas de capacidades, privacidad, social, catálogo, acceso, audio, prácticas parciales y timelapse.
+- `Tools/verify_project.py`: 72 comprobaciones estáticas de capacidades, privacidad, social, catálogo, acceso y prácticas parciales.
 - `Tools/verify_audio.py` y `Tools/verify_catalog.py`: formato, duración, tamaño y SHA-256 de los siete recursos de audio.
 - `Tools/verify_core.py`: pruebas portables del núcleo fuera de Xcode.
 - El target completo `Meditacion` compiló correctamente en Release para un iPhone genérico con CloudKit, APNs, iCloud sharing y audio en segundo plano configurados.
@@ -47,3 +49,7 @@ No se desplegó un backend, alojamiento de catálogo ni esquema CloudKit de prod
 `group-long.m4a` y `group-short.m4a` (~127 MB) dejaron de declararse como `bundledResource` y se eliminaron de `iOS/Resources/`: `iOS/Resources/AudioCatalog.json` ahora tiene `tracks`/`profiles` vacíos y el proyecto se regeneró con `Tools/generate_project.py`. Los cinco Group Sitting disponibles (los dos anteriores más Giri/Igatpuri, Setu/Chennai y Shikhara/Dharamshala, tres grabaciones nuevas) se sirven exclusivamente desde `https://manuelpedrobm-hash.github.io/evamor-audio/catalog.json`, publicado en un repositorio público de GitHub Pages con el mismo patrón que `evamor-privacidad`/`evamor-soporte`. Verificado por hash sobre HTTPS tras publicar. `Tools/verify_project.py` (85/85) y `Tools/verify_catalog.py`/`Tools/verify_audio.py` siguen en verde tras el cambio.
 
 Contrapartida: la app ya no trae ningún Group Sitting disponible sin conexión desde la primera instalación; el primer uso de cada uno requiere red para descargarlo (con verificación de tamaño/hash/duración, como el resto del catálogo remoto).
+
+### Actualización del 18 de septiembre de 2026 (tarde)
+
+Se retiró por completo la función Permanecer (timelapse, Pulso de quietud/Vision, `MeditationMedia`, permisos de cámara y Fotos): las menciones a timelapse en la «Revisión del 17 de septiembre» de más arriba describen una función que ya no existe en la app. Se eliminaron `iOS/Services/TimelapseService.swift`, `iOS/Features/TimelapseViews.swift`, `iOS/Features/PaliQuotes.swift`, los campos de `SessionConfiguration`/`SessionProgress` asociados y el modelo `MeditationMedia`; `NSCameraUsageDescription` y `NSPhotoLibraryAddUsageDescription` se quitaron de `Info.plist`. Se regeneró el proyecto y se repitió toda la verificación disponible: build Debug del scheme `Meditacion`, `xcodebuild test` (31 pruebas unitarias/integración + 2 de interfaz, todo en verde), `swift test` (16/16), `Tools/verify_project.py` (72/72) y `Tools/verify_audio.py`/`verify_catalog.py`/`verify_core.py` sin cambios de resultado. También se instaló y probó en el iPhone 13 Pro físico (target `Evamor Local`).

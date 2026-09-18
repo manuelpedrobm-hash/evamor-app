@@ -1,6 +1,6 @@
 # Arquitectura
 
-`AppModel` compone SwiftData (`LocalStore`), `SessionEngine`, AVFoundation (`AudioService` y `TimelapseRecorder`), Vision, UserNotifications (`NotificationService`), CloudKit (`CloudService`) y `SyncService`. Las vistas no acceden directamente a almacenamiento ni red. El núcleo de sesión y estadísticas permanece en `MeditationCore` y tiene pruebas independientes.
+`AppModel` compone SwiftData (`LocalStore`), `SessionEngine`, AVFoundation (`AudioService`), UserNotifications (`NotificationService`), CloudKit (`CloudService`) y `SyncService`. Las vistas no acceden directamente a almacenamiento ni red. El núcleo de sesión y estadísticas permanece en `MeditationCore` y tiene pruebas independientes.
 
 ## Datos locales
 
@@ -10,7 +10,6 @@
 - `SyncOperation`: outbox persistente para sesiones privadas y señales autorizadas.
 - `FriendSnapshot`: canal entrante o participante saliente, silencio y primera fecha observada.
 - `SocialReceipt`: ID de señal procesada para deduplicación.
-- `MeditationMedia`: nombre local del MP4 y resumen agregado de movimiento. No entra en la cola de sincronización.
 
 Guardar la sesión, insertar su outbox y eliminar la sesión activa usa una sola transacción SwiftData. Los reintentos conservan el UUID y CloudKit usa nombres de registro derivados de ese UUID.
 
@@ -21,12 +20,6 @@ La base privada contiene `MeditationSession` y una zona personalizada `PracticeC
 La base compartida del receptor contiene los canales aceptados. Una `CKDatabaseSubscription` solicita contenido en segundo plano. Tras el push, la app consulta las zonas compartidas, deduplica, filtra por consentimiento y silencio, y crea un aviso local por amigo. Los eventos anteriores a la primera observación del canal se ignoran para que una amistad nueva no genere avisos históricos.
 
 La app no controla servidores ni secretos y no puede suplantar al propietario de un canal: solo el propietario escribe señales y los participantes reciben acceso de lectura. Las identidades y la aceptación son gestionadas por iCloud.
-
-## Timelapse y movimiento
-
-La cámara frontal alimenta `AVCaptureVideoDataOutput`; no existe entrada de audio. `AVAssetWriter` recibe fotogramas con tiempos sintéticos a 30 fps y produce directamente un MP4 acelerado, sin conservar una grabación larga intermedia. El intervalo se adapta a la duración y limita el resultado a unos 30 segundos.
-
-Vision ejecuta `VNDetectHumanBodyPoseRequest` sobre los fotogramas elegidos. Se comparan únicamente articulaciones con confianza suficiente y se descartan inmediatamente sus coordenadas. SwiftData conserva el número de observaciones y el desplazamiento medio agregado. Las bandas son descripciones corporales neutrales y la interfaz aclara que no miden ecuanimidad ni calidad de práctica.
 
 ## Límites deliberados
 

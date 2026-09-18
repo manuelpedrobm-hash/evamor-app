@@ -5,9 +5,7 @@
 - Datos locales con SwiftData, funcionamiento sin conexión y restauración del temporizador.
 - Catálogo HTTPS con caché, validación de tamaño, SHA-256 y duración.
 - Declaración de privacidad sin seguimiento ni publicidad.
-- Permisos contextuales de cámara y Fotos.
-- Timelapse sin micrófono, análisis corporal opcional y retención configurable.
-- Exportación y borrado del historial; borrado colectivo de timelapses.
+- Exportación y borrado del historial.
 - Avisos sociales mínimos sin nombre, duración ni selección de audio.
 - Compatibilidad con texto grande, VoiceOver y Reducir movimiento en los flujos principales.
 - Puerta local para antiguos alumnos; solo conserva el acceso concedido y no guarda la contraseña.
@@ -18,11 +16,9 @@
 2. ~~Elegir el identificador y equipo de distribución definitivos y subir iconos, capturas, descripción, categoría, soporte y política de privacidad en App Store Connect.~~ Textos, capturas a 1320×2868 (6,9"), icono, soporte y privacidad ya listos — ver [AppStoreListing.md](AppStoreListing.md). Política: <https://manuelpedrobm-hash.github.io/evamor-privacidad/>. Soporte: <https://manuelpedrobm-hash.github.io/evamor-soporte/>. Solo falta pegarlo en App Store Connect el día que exista la ficha (paso 6 del guion de abajo), y decidir el identificador/equipo definitivo si al final no es este del amigo.
 3. ~~Configurar una URL HTTPS definitiva para el catálogo y publicar su política de conservación de logs.~~ Resuelto: catálogo publicado en `https://manuelpedrobm-hash.github.io/evamor-audio/catalog.json` (repositorio público `manuelpedrobm-hash/evamor-audio`, GitHub Pages). Los cinco Group Sitting ya no van embebidos en el binario. El registro de acceso lo cubre la política de privacidad de GitHub Pages, no una propia.
 4. Crear el contenedor CloudKit definitivo, desplegar el esquema en producción y probar invitaciones con dos Apple ID reales.
-5. Probar cámara, bloqueo, llamadas, auriculares, batería y sesiones de ocho horas en varios iPhone físicos.
+5. Probar bloqueo, llamadas, auriculares, batería y sesiones de ocho horas en varios iPhone físicos.
 6. Distribuir mediante TestFlight y resolver los informes antes de producción.
 7. Entregar a App Review las credenciales de acceso compartidas en las notas de revisión. Si se necesita verificar individualmente a cada alumno, sustituir la puerta local por un servicio de cuentas antes del lanzamiento.
-
-La cámara no puede seguir capturando cuando iOS bloquea el dispositivo o suspende la aplicación. Ecuanimidad detiene únicamente el vídeo; el reloj, el audio en curso y el aviso final continúan. Al volver a primer plano, la captura se reanuda si el proceso sigue vivo. Si iOS termina el proceso, la sesión se restaura sin perder tiempo, pero el vídeo incompleto no se puede recuperar.
 
 ## Guion con la cuenta prestada (equipo de pago de un tercero)
 
