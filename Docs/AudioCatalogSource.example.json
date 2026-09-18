@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "revision": "2026-09-17.2",
+  "tracks": [
+    {
+      "id": "new-guided-session-es",
+      "title": "Nueva sesión guiada",
+      "detail": "Español",
+      "durationSeconds": 3600,
+      "sourceFile": "/ruta/al/audio.m4a"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "new-guided-session-es-profile",
+      "name": "Sesión guiada en español",
+      "detail": "1 hora",
+      "minutes": 60,
+      "trackID": "new-guided-session-es"
+    }
+  ]
+}

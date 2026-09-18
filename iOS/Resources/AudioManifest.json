@@ -1,0 +1,27 @@
+{
+  "purpose": "User-provided introduction (0:00\u20134:19) and Bhavatu Sabba Mangalam for metta; remaining cues are original synthesized demonstrations.",
+  "sampleRate": 22050,
+  "assets": {
+    "introduction": 259,
+    "chanting": 12,
+    "closing": 8,
+    "metta": 72.6465306122449,
+    "gong": 3
+  },
+  "sessionRangeMinutes": {
+    "minimum": 5,
+    "maximum": 480
+  },
+  "replacement": "Keep WAV durations, AudioKind.seconds and this manifest in sync.",
+  "sources": {
+    "introduction": {
+      "filename": "Day01_Morning_Chantings_Chanting_10day.mp3",
+      "startSeconds": 0,
+      "endSeconds": 259
+    },
+    "metta": {
+      "filename": "Acharya_S_N_Goenka_-_Bhavatu_Sabba_Mangalam_M_Shantina_-_MP3Juicescom_KLICKAUD.mp3",
+      "use": "complete recording"
+    }
+  }
+}
