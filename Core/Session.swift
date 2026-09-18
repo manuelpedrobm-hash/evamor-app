@@ -31,75 +31,33 @@ public struct CatalogAudioReference: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-public enum TimelapseCameraPosition: String, Codable, Sendable, CaseIterable {
-    case front, back
-    public var title: String { self == .front ? "Frontal" : "Trasera" }
-}
-
-public enum TimelapseLens: String, Codable, Sendable, CaseIterable {
-    case ultraWide, wide, telephoto
-    public var title: String {
-        switch self {
-        case .ultraWide: return "Ultra gran angular"
-        case .wide: return "Gran angular"
-        case .telephoto: return "Teleobjetivo"
-        }
-    }
-}
-
 public struct SessionConfiguration: Codable, Equatable, Sendable {
     public var minutes: Int
     public var audio: Set<AudioKind>
-    public var timeLapseEnabled: Bool
     public var catalogAudio: CatalogAudioReference?
-    public var timelapseOutputSeconds: Int
-    public var timelapseAnalyzesMovement: Bool
-    public var timelapseCameraPosition: TimelapseCameraPosition
-    public var timelapseLens: TimelapseLens
     public init(
         minutes: Int = 60,
         audio: Set<AudioKind> = [],
-        timeLapseEnabled: Bool = false,
-        catalogAudio: CatalogAudioReference? = nil,
-        timelapseOutputSeconds: Int = 30,
-        timelapseAnalyzesMovement: Bool = true,
-        timelapseCameraPosition: TimelapseCameraPosition = .front,
-        timelapseLens: TimelapseLens = .wide
+        catalogAudio: CatalogAudioReference? = nil
     ) {
         self.minutes = minutes
         self.audio = audio
-        self.timeLapseEnabled = timeLapseEnabled
         self.catalogAudio = catalogAudio
-        self.timelapseOutputSeconds = [10, 20, 30].contains(timelapseOutputSeconds) ? timelapseOutputSeconds : 30
-        self.timelapseAnalyzesMovement = timelapseAnalyzesMovement
-        self.timelapseCameraPosition = timelapseCameraPosition
-        self.timelapseLens = timelapseLens
     }
     private enum CodingKeys: String, CodingKey {
-        case minutes, audio, timeLapseEnabled, catalogAudio, timelapseOutputSeconds, timelapseAnalyzesMovement
-        case timelapseCameraPosition, timelapseLens
+        case minutes, audio, catalogAudio
     }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         minutes = try values.decode(Int.self, forKey: .minutes)
         audio = try values.decode(Set<AudioKind>.self, forKey: .audio)
-        timeLapseEnabled = try values.decodeIfPresent(Bool.self, forKey: .timeLapseEnabled) ?? false
         catalogAudio = try values.decodeIfPresent(CatalogAudioReference.self, forKey: .catalogAudio)
-        timelapseOutputSeconds = try values.decodeIfPresent(Int.self, forKey: .timelapseOutputSeconds) ?? 30
-        timelapseAnalyzesMovement = try values.decodeIfPresent(Bool.self, forKey: .timelapseAnalyzesMovement) ?? true
-        timelapseCameraPosition = try values.decodeIfPresent(TimelapseCameraPosition.self, forKey: .timelapseCameraPosition) ?? .front
-        timelapseLens = try values.decodeIfPresent(TimelapseLens.self, forKey: .timelapseLens) ?? .wide
     }
     public func encode(to encoder: Encoder) throws {
         var values = encoder.container(keyedBy: CodingKeys.self)
         try values.encode(minutes, forKey: .minutes)
         try values.encode(audio, forKey: .audio)
-        try values.encode(timeLapseEnabled, forKey: .timeLapseEnabled)
         try values.encodeIfPresent(catalogAudio, forKey: .catalogAudio)
-        try values.encode(timelapseOutputSeconds, forKey: .timelapseOutputSeconds)
-        try values.encode(timelapseAnalyzesMovement, forKey: .timelapseAnalyzesMovement)
-        try values.encode(timelapseCameraPosition, forKey: .timelapseCameraPosition)
-        try values.encode(timelapseLens, forKey: .timelapseLens)
     }
     public var minimumMinutes: Int {
         let builtIn = audio.filter { $0 != .metta }.reduce(0) { $0 + $1.seconds }
@@ -122,45 +80,6 @@ public struct SessionConfiguration: Codable, Equatable, Sendable {
             result.append(SessionPhase(audio: kind, seconds: kind.seconds))
         }
         return result
-    }
-}
-
-public struct TimelapsePlan: Equatable, Sendable {
-    public static let framesPerSecond = 30
-    public static let maximumOutputSeconds = 30
-    public let sourceSeconds: Double
-    public let captureInterval: Double
-
-    public init(sourceSeconds: Double, outputSeconds: Int = maximumOutputSeconds) {
-        self.sourceSeconds = max(1, sourceSeconds)
-        let boundedOutput = min(Self.maximumOutputSeconds, max(1, outputSeconds))
-        captureInterval = max(1, self.sourceSeconds / Double(Self.framesPerSecond * boundedOutput))
-    }
-    public var estimatedFrameCount: Int { max(1, Int(ceil(sourceSeconds / captureInterval))) }
-    public var estimatedOutputSeconds: Double { Double(estimatedFrameCount) / Double(Self.framesPerSecond) }
-}
-
-public enum MovementBand: String, Codable, Equatable, Sendable {
-    case sustainedStillness
-    case gentleAdjustments
-    case livingMovement
-    case unavailable
-}
-
-public struct MotionSummary: Codable, Equatable, Sendable {
-    public let sampleCount: Int
-    public let averageJointDisplacement: Double
-
-    public init(sampleCount: Int, averageJointDisplacement: Double) {
-        self.sampleCount = max(0, sampleCount)
-        self.averageJointDisplacement = max(0, averageJointDisplacement)
-    }
-
-    public var band: MovementBand {
-        guard sampleCount >= 2 else { return .unavailable }
-        if averageJointDisplacement <= 0.008 { return .sustainedStillness }
-        if averageJointDisplacement <= 0.025 { return .gentleAdjustments }
-        return .livingMovement
     }
 }
 

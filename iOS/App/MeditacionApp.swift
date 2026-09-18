@@ -22,7 +22,7 @@ import UserNotifications
         }
 #endif
         do {
-            let schema = Schema([MeditationSession.self, ActiveSession.self, Preferences.self, SyncOperation.self, FriendSnapshot.self, SocialReceipt.self, MeditationMedia.self])
+            let schema = Schema([MeditationSession.self, ActiveSession.self, Preferences.self, SyncOperation.self, FriendSnapshot.self, SocialReceipt.self])
             let configuration = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
             let container = try ModelContainer(for: schema, configurations: configuration)
             _model = State(initialValue: AppModel(container: container))
@@ -42,7 +42,6 @@ import UserNotifications
                     .task { delegate.model = model; await model.start() }
                     .onChange(of: scenePhase) { _, phase in
                         if phase == .active { Task { await model.foreground() } }
-                        else if phase == .background { model.background() }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
                         Task { await model.foreground() }

@@ -40,7 +40,7 @@ struct OnboardingView: View {
                         title: "Privacidad clara",
                         message: "Ecuanimidad no contiene publicidad, seguimiento ni analítica de terceros. Tú decides cuándo usar iCloud y las notificaciones.",
                         points: [
-                            ("video", "Historial y timelapse permanecen locales"),
+                            ("video", "El historial permanece local"),
                             ("icloud", "iCloud solo para sincronización y amigos"),
                             ("bell.slash", "Avisos y envío social desactivados inicialmente")
                         ]

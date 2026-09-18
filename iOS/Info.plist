@@ -24,10 +24,6 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>Ecuanimidad usa la cámara (frontal o trasera, según elijas) únicamente cuando activas un timelapse. El vídeo se crea en este iPhone y no incluye sonido.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Ecuanimidad añade el timelapse a Fotos únicamente cuando pulsas Guardar en Fotos.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

@@ -5,22 +5,21 @@ import AVFoundation
 @testable import Meditacion
 
 @MainActor private func makeTestStore() throws -> LocalStore {
-    let schema = Schema([MeditationSession.self, ActiveSession.self, Preferences.self, SyncOperation.self, FriendSnapshot.self, SocialReceipt.self, MeditationMedia.self])
+    let schema = Schema([MeditationSession.self, ActiveSession.self, Preferences.self, SyncOperation.self, FriendSnapshot.self, SocialReceipt.self])
     let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
     return LocalStore(container: try ModelContainer(for: schema, configurations: configuration))
 }
 
 @MainActor final class LocalStoreTests: XCTestCase {
-    func testQuickDurationsPersistAndPreserveAudioAndTimelapse() throws {
+    func testQuickDurationsPersistAndPreserveAudio() throws {
         let store = try makeTestStore()
         let model = AppModel(container: store.context.container)
-        model.saveConfiguration(.init(minutes: 60, audio: [.introduction, .metta], timeLapseEnabled: true))
+        model.saveConfiguration(.init(minutes: 60, audio: [.introduction, .metta]))
         for minutes in [5, 15, 30, 60, 5] {
             model.setQuickDuration(minutes)
             model.reload()
             XCTAssertEqual(model.configuration.minutes, minutes)
             XCTAssertEqual(model.configuration.audio, [.introduction, .metta])
-            XCTAssertTrue(model.configuration.timeLapseEnabled)
         }
     }
 
@@ -118,7 +117,7 @@ import AVFoundation
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         var catalog = AudioCatalogService(defaults: defaults)
-        let configuration = SessionConfiguration(minutes: 30, audio: [.metta], timeLapseEnabled: true, timelapseOutputSeconds: 20)
+        let configuration = SessionConfiguration(minutes: 30, audio: [.metta])
         catalog.saveProfile(name: " Tarde ", configuration: configuration)
         catalog = AudioCatalogService(defaults: defaults)
         XCTAssertEqual(catalog.savedProfiles.count, 1)
@@ -128,40 +127,20 @@ import AVFoundation
         XCTAssertTrue(AudioCatalogService(defaults: defaults).savedProfiles.isEmpty)
     }
 
-    func testTimelapseBulkDeletionKeepsMeditationHistory() throws {
-        let store = try makeTestStore()
-        let progress = SessionProgress(configuration: .init(minutes: 5), now: Date().addingTimeInterval(-400))
-        try store.complete(progress, owner: "local", share: false)
-        try store.saveMedia(sessionID: progress.id, owner: "local", filename: "clip.mp4")
-        try store.deleteAllMedia(owner: "local")
-        XCTAssertNil(try store.mediaFilename(sessionID: progress.id, owner: "local"))
-        XCTAssertEqual(try store.records(owner: "local").count, 1)
-    }
+    func testBundledCatalogStartsEmptyAndReliesOnTheRemoteCatalog() throws {
+        // AudioCatalogService caches any remote catalog it has ever fetched in
+        // Application Support, shared by the whole app container regardless of
+        // which UserDefaults suite is passed in. Other tests/launches in the
+        // same run may have already fetched the real remote catalog, so clear
+        // that cache first to see the bundled-only state this test is about.
+        let cacheDirectory = try FileManager.default
+            .url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            .appendingPathComponent("AudioCatalog", isDirectory: true)
+        try? FileManager.default.removeItem(at: cacheDirectory)
 
-    func testPaliQuoteSelectionIsStableAndVariesAcrossFiles() {
-        let first = PaliQuote.forTimelapse(URL(fileURLWithPath: "/tmp/evamor-a.mp4"))
-        XCTAssertEqual(first, PaliQuote.forTimelapse(URL(fileURLWithPath: "/tmp/evamor-a.mp4")))
-        let choices = (0..<30).map { PaliQuote.forTimelapse(URL(fileURLWithPath: "/tmp/evamor-\($0).mp4")).id }
-        XCTAssertGreaterThan(Set(choices).count, 1)
-        XCTAssertEqual(PaliQuote.collection.count, 22)
-        XCTAssertEqual(Set(PaliQuote.collection.map(\.id)).count, 22)
-        XCTAssertTrue(PaliQuote.collection.allSatisfy { !$0.pali.isEmpty && !$0.translation.isEmpty && $0.source.hasPrefix("Dhammapada") })
-    }
-
-    func testBundledCatalogSessionsArePlayableAndProfilesFit() throws {
         let catalog = AudioCatalogService(defaults: UserDefaults(suiteName: UUID().uuidString)!)
-        XCTAssertEqual(catalog.tracks.count, 2)
-        XCTAssertEqual(catalog.catalogProfiles.count, 2)
-        for profile in catalog.catalogProfiles {
-            let track = try XCTUnwrap(profile.trackID.flatMap { catalog.track(id: $0) })
-            let url = try XCTUnwrap(catalog.localURL(for: track.id))
-            let player = try AVAudioPlayer(contentsOf: url)
-            XCTAssertEqual(player.duration, track.durationSeconds, accuracy: 0.05)
-            let configuration = SessionConfiguration(minutes: profile.minutes, catalogAudio: track.reference)
-            XCTAssertTrue(configuration.isValid)
-            XCTAssertEqual(configuration.phases.first?.catalogAudio?.id, track.id)
-            XCTAssertEqual(configuration.phases.reduce(0) { $0 + $1.seconds }, configuration.totalSeconds, accuracy: 0.001)
-        }
+        XCTAssertTrue(catalog.tracks.isEmpty)
+        XCTAssertTrue(catalog.catalogProfiles.isEmpty)
     }
 
     func testDeletingHistoryIsImmediateAndQueuesRemoteDeletion() throws {
@@ -176,16 +155,6 @@ import AVFoundation
         XCTAssertTrue(operations.filter { $0.kind == "session" }.isEmpty)
     }
 
-    func testTimelapseMetadataIsLocalAndDeletedWithHistory() throws {
-        let store = try makeTestStore()
-        let motion = MotionSummary(sampleCount: 20, averageJointDisplacement: 0.012)
-        try store.saveMedia(sessionID: "session", owner: "local", filename: "clip.mp4", motion: motion)
-        XCTAssertEqual(try store.mediaFilename(sessionID: "session", owner: "local"), "clip.mp4")
-        XCTAssertEqual(try store.motionSummary(sessionID: "session", owner: "local"), motion)
-        XCTAssertTrue(try store.operations(owner: "local").isEmpty)
-        try store.deleteHistory(owner: "local")
-        XCTAssertNil(try store.mediaFilename(sessionID: "session", owner: "local"))
-    }
 }
 
 @MainActor final class MockCloud: CloudGateway {

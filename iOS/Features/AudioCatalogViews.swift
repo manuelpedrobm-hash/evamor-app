@@ -113,7 +113,7 @@ struct AudioCatalogView: View {
                 }
                 Button("Cancelar", role: .cancel) { profileName = "" }
             } message: {
-                Text("Guardará duración, audios y opciones de timelapse.")
+                Text("Guardará duración y audios.")
             }
         }
     }

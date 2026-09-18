@@ -82,22 +82,6 @@ import MeditationCore
     init(id: String) { self.id = id; receivedAt = .now }
 }
 
-@Model final class MeditationMedia {
-    @Attribute(.unique) var key: String
-    var owner: String
-    var sessionID: String
-    var filename: String
-    var createdAt: Date
-    var motionSampleCount: Int?
-    var averageJointDisplacement: Double?
-    init(owner: String, sessionID: String, filename: String, motion: MotionSummary? = nil) {
-        key = owner + ":" + sessionID
-        self.owner = owner; self.sessionID = sessionID; self.filename = filename; createdAt = .now
-        motionSampleCount = motion?.sampleCount
-        averageJointDisplacement = motion?.averageJointDisplacement
-    }
-}
-
 @MainActor protocol SessionRepository {
     func saveActive(_ progress: SessionProgress, owner: String) throws
     func loadActive() throws -> (String, SessionProgress)?
@@ -153,49 +137,12 @@ import MeditationCore
         try context.fetch(FetchDescriptor<MeditationSession>(sortBy: [SortDescriptor(\.startedAt, order: .reverse)]))
             .filter { $0.owner == owner }.map { try $0.record() }
     }
-    func saveMedia(sessionID: String, owner: String, filename: String, motion: MotionSummary? = nil) throws {
-        let key = owner + ":" + sessionID
-        let items = try context.fetch(FetchDescriptor<MeditationMedia>())
-        if let item = items.first(where: { $0.key == key }) {
-            item.filename = filename
-            item.motionSampleCount = motion?.sampleCount
-            item.averageJointDisplacement = motion?.averageJointDisplacement
-        } else { context.insert(MeditationMedia(owner: owner, sessionID: sessionID, filename: filename, motion: motion)) }
-        try commit()
-    }
-    func mediaFilename(sessionID: String, owner: String) throws -> String? {
-        try context.fetch(FetchDescriptor<MeditationMedia>())
-            .first(where: { $0.owner == owner && $0.sessionID == sessionID })?.filename
-    }
-    func mediaFilenames(owner: String) throws -> [String] {
-        try context.fetch(FetchDescriptor<MeditationMedia>()).filter { $0.owner == owner }.map(\.filename)
-    }
-    func mediaOlder(than date: Date, owner: String) throws -> [MeditationMedia] {
-        try context.fetch(FetchDescriptor<MeditationMedia>()).filter { $0.owner == owner && $0.createdAt < date }
-    }
-    func deleteMedia(_ media: MeditationMedia) { context.delete(media) }
-    func deleteAllMedia(owner: String) throws {
-        for media in try context.fetch(FetchDescriptor<MeditationMedia>()).filter({ $0.owner == owner }) {
-            context.delete(media)
-        }
-        try commit()
-    }
-    func motionSummary(sessionID: String, owner: String) throws -> MotionSummary? {
-        guard let item = try context.fetch(FetchDescriptor<MeditationMedia>())
-            .first(where: { $0.owner == owner && $0.sessionID == sessionID }),
-              let sampleCount = item.motionSampleCount,
-              let displacement = item.averageJointDisplacement else { return nil }
-        return MotionSummary(sampleCount: sampleCount, averageJointDisplacement: displacement)
-    }
     func deleteHistory(owner: String) throws {
         for session in try context.fetch(FetchDescriptor<MeditationSession>()) where session.owner == owner {
             context.delete(session)
         }
         let operations = try context.fetch(FetchDescriptor<SyncOperation>()).filter { $0.owner == owner }
         for operation in operations where operation.kind == "session" { context.delete(operation) }
-        for media in try context.fetch(FetchDescriptor<MeditationMedia>()) where media.owner == owner {
-            context.delete(media)
-        }
         if !operations.contains(where: { $0.kind == "deleteHistory" }) {
             context.insert(SyncOperation(owner: owner, kind: "deleteHistory", payload: Data(), id: owner + ":deleteHistory"))
         }

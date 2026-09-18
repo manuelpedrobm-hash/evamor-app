@@ -9,7 +9,6 @@ final class SessionTests: XCTestCase {
     }
     func testDefaultAndEveryAudioCombinationPreservesDuration() {
         XCTAssertEqual(SessionConfiguration().minutes, 60)
-        XCTAssertFalse(SessionConfiguration().timeLapseEnabled)
         for mask in 0..<16 {
             let audio = Set(AudioKind.allCases.enumerated().filter { mask & (1 << $0.offset) != 0 }.map(\.element))
             let config = SessionConfiguration(minutes: 5, audio: audio)
@@ -21,23 +20,10 @@ final class SessionTests: XCTestCase {
         XCTAssertTrue(SessionConfiguration(minutes: 480).isValid)
         XCTAssertFalse(SessionConfiguration(minutes: 481).isValid)
     }
-    func testLegacyConfigurationAndTimelapsePlan() throws {
+    func testLegacyConfigurationDecodesWithoutRemovedFields() throws {
         let legacy = Data(#"{"minutes":60,"audio":[]}"#.utf8)
         let decoded = try JSONDecoder().decode(SessionConfiguration.self, from: legacy)
-        XCTAssertFalse(decoded.timeLapseEnabled)
-
-        let short = TimelapsePlan(sourceSeconds: 300)
-        XCTAssertEqual(short.captureInterval, 1)
-        XCTAssertEqual(short.estimatedOutputSeconds, 10)
-        let hour = TimelapsePlan(sourceSeconds: 3_600)
-        XCTAssertEqual(hour.captureInterval, 4)
-        XCTAssertLessThanOrEqual(hour.estimatedOutputSeconds, 30)
-        let eightHours = TimelapsePlan(sourceSeconds: 28_800)
-        XCTAssertEqual(eightHours.captureInterval, 32)
-        XCTAssertLessThanOrEqual(eightHours.estimatedOutputSeconds, 30)
-        let shortVideo = TimelapsePlan(sourceSeconds: 3_600, outputSeconds: 10)
-        XCTAssertEqual(shortVideo.captureInterval, 12)
-        XCTAssertLessThanOrEqual(shortVideo.estimatedOutputSeconds, 10)
+        XCTAssertEqual(decoded.minutes, 60)
     }
     func testDynamicCatalogAudioFitsAndLeavesExactSilence() {
         let track = CatalogAudioReference(id: "guided", title: "Guided", durationSeconds: 3_872.715465)
@@ -71,12 +57,6 @@ final class SessionTests: XCTestCase {
                 XCTAssertNil(progress.phase(at: progress.deadline))
             }
         }
-    }
-    func testMovementBandsAreDescriptiveAndNeverScores() {
-        XCTAssertEqual(MotionSummary(sampleCount: 1, averageJointDisplacement: 0).band, .unavailable)
-        XCTAssertEqual(MotionSummary(sampleCount: 10, averageJointDisplacement: 0.004).band, .sustainedStillness)
-        XCTAssertEqual(MotionSummary(sampleCount: 10, averageJointDisplacement: 0.015).band, .gentleAdjustments)
-        XCTAssertEqual(MotionSummary(sampleCount: 10, averageJointDisplacement: 0.08).band, .livingMovement)
     }
     func testPauseAndResumeSurviveSerialization() throws {
         let start = date("2026-09-14T10:00:00Z")

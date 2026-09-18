@@ -39,9 +39,6 @@ final class DhammaUITests: XCTestCase {
             }
             XCTAssertEqual(toggle.value as? String, "1", app.debugDescription)
         }
-        if !app.switches["Crear timelapse"].exists { app.swipeUp() }
-        XCTAssertTrue(app.switches["Crear timelapse"].waitForExistence(timeout: 3))
-        if app.switches["Crear timelapse"].value as? String == "1" { app.switches["Crear timelapse"].tap() }
         app.buttons["Guardar"].tap()
         app.buttons["quickDuration15"].tap()
         app.buttons["quickDuration5"].tap()
