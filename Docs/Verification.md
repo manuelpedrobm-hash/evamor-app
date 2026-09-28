@@ -58,4 +58,8 @@ Se retiró por completo la función Permanecer (timelapse, Pulso de quietud/Visi
 
 La función Permanecer se rehízo desde cero en una copia aislada del proyecto. Usa una canalización de cámara sencilla, admite cámara delantera o trasera y no inicia la meditación hasta haber escrito el primer fotograma. Los vídeos se producen a 24 fps a partir de capturas espaciadas, pueden verse y compartirse al terminar y quedan asociados al historial local. Se añadieron pruebas que generan y validan un MP4 sintético.
 
-También se eliminó la dependencia del catálogo de GitHub. La aplicación contiene únicamente los sittings con instrucciones largas y cortas, disponibles sin conexión y con Metta extendido opcional. La verificación final aprobó 17 pruebas de núcleo (99.139 aserciones), 34 pruebas unitarias/integración, 2 pruebas de interfaz y 72 comprobaciones estáticas, sin fallos.
+También se eliminó la dependencia del catálogo de GitHub. La aplicación contiene únicamente los sittings con instrucciones largas y cortas, disponibles sin conexión. La verificación inicial aprobó 17 pruebas de núcleo (99.139 aserciones), 34 pruebas unitarias/integración, 2 pruebas de interfaz y 72 comprobaciones estáticas, sin fallos.
+
+### Revisión del 28 de septiembre de 2026
+
+Se unificó la presentación del encuadre y la sesión para que el cierre de la vista de cámara no cancele la grabación. Los sittings ahora usan exactamente la duración del archivo: incluyen sus cantos y Metta, sin una pista adicional ni silencio de redondeo. El final del audio activa el guardado de la sesión aunque el teléfono esté bloqueado. Cada timelapse puede borrarse desde su reproductor sin eliminar la práctica del historial. Tras una prueba en iPhone, se estableció que bloquear la pantalla o salir de la app cancela y descarta el vídeo sin interrumpir la meditación ni el audio; esta condición se indica en la interfaz.

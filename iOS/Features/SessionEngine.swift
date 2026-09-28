@@ -57,15 +57,7 @@ import MeditationCore
         guard let progress else { return }
         remaining = progress.remaining(at: clock.now)
         if progress.isComplete(at: clock.now) {
-            audio.stop()
-            do {
-                try repository.complete(progress, owner: owner, share: sharingAllowed(owner))
-                let completedID = progress.id
-                finish(); onCompletion?(completedID)
-            } catch {
-                // Preserve the active record so reopening can safely retry the atomic completion.
-                timer?.invalidate(); self.error = "No se pudo guardar la sesión. Vuelve a abrir la app para reintentarlo."
-            }
+            complete(progress)
             return
         }
         guard !isPaused, let current = progress.phase(at: clock.now) else { return }
@@ -79,6 +71,28 @@ import MeditationCore
                 catch is CancellationError { }
                 catch { pause(); self.error = "No se pudo reproducir el audio. La sesión está pausada." }
             }
+        }
+    }
+    func audioDidFinish(successfully: Bool) {
+        guard let progress, !isPaused, progress.configuration.catalogAudio != nil,
+              playingIndex == 0 else { return }
+        guard successfully else {
+            pause()
+            error = "El sitting se interrumpió antes de terminar. Puedes reanudarlo desde la sesión."
+            return
+        }
+        // A complete sitting ends with the recording itself. Its playback
+        // callback also arrives while the phone is locked, unlike the timer.
+        complete(progress)
+    }
+    private func complete(_ progress: SessionProgress) {
+        do {
+            try repository.complete(progress, owner: owner, share: sharingAllowed(owner))
+            let completedID = progress.id
+            finish(); onCompletion?(completedID)
+        } catch {
+            // Preserve the active record so reopening can safely retry the atomic completion.
+            timer?.invalidate(); self.error = "No se pudo guardar la sesión. Vuelve a abrir la app para reintentarlo."
         }
     }
     func pause() {

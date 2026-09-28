@@ -184,6 +184,13 @@ import MeditationCore
         try context.fetch(FetchDescriptor<TimelapseMedia>())
             .filter { $0.owner == owner }.map(\.filename)
     }
+    func deleteTimelapse(sessionID: String, owner: String) throws {
+        for item in try context.fetch(FetchDescriptor<TimelapseMedia>())
+            where item.owner == owner && item.sessionID == sessionID {
+            context.delete(item)
+        }
+        try commit()
+    }
     func deleteAllTimelapses(owner: String) throws {
         for item in try context.fetch(FetchDescriptor<TimelapseMedia>()) where item.owner == owner {
             context.delete(item)

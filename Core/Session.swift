@@ -112,21 +112,25 @@ public struct SessionConfiguration: Codable, Equatable, Sendable {
         try values.encode(timelapse, forKey: .timelapse)
     }
     public var minimumMinutes: Int {
+        if let catalogAudio { return max(1, Int(ceil(catalogAudio.durationSeconds / 60))) }
         let builtIn = audio.filter { $0 != .metta }.reduce(0) { $0 + $1.seconds }
-        return max(1, Int(ceil((builtIn + (catalogAudio?.durationSeconds ?? 0)) / 60)))
+        return max(1, Int(ceil(builtIn / 60)))
     }
     public static let allowedMinutes = 5...480
     public var isValid: Bool { Self.allowedMinutes.contains(minutes) && minutes >= minimumMinutes }
-    public var totalSeconds: Double { Double(minutes * 60) + (audio.contains(.metta) ? AudioKind.metta.seconds : 0) }
+    public var totalSeconds: Double {
+        if let catalogAudio { return catalogAudio.durationSeconds }
+        return Double(minutes * 60) + (audio.contains(.metta) ? AudioKind.metta.seconds : 0)
+    }
     public var phases: [SessionPhase] {
-        var result: [SessionPhase] = []
         if let catalogAudio {
-            result.append(SessionPhase(audio: nil, catalogAudio: catalogAudio, seconds: catalogAudio.durationSeconds))
+            return [SessionPhase(audio: nil, catalogAudio: catalogAudio, seconds: catalogAudio.durationSeconds)]
         }
+        var result: [SessionPhase] = []
         for kind in [AudioKind.introduction, .chanting] where audio.contains(kind) {
             result.append(SessionPhase(audio: kind, seconds: kind.seconds))
         }
-        let used = audio.filter { $0 != .metta }.reduce(0) { $0 + $1.seconds } + (catalogAudio?.durationSeconds ?? 0)
+        let used = audio.filter { $0 != .metta }.reduce(0) { $0 + $1.seconds }
         if Double(minutes * 60) > used { result.append(SessionPhase(audio: nil, seconds: Double(minutes * 60) - used)) }
         for kind in [AudioKind.closing, .metta] where audio.contains(kind) {
             result.append(SessionPhase(audio: kind, seconds: kind.seconds))

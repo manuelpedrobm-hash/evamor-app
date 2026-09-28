@@ -6,15 +6,17 @@ import MeditationCore
     func stop()
 }
 
-@MainActor final class AudioService: MeditationAudioPlayer {
+@MainActor final class AudioService: NSObject, MeditationAudioPlayer, AVAudioPlayerDelegate {
     private var player: AVAudioPlayer?
     private var playbackGeneration = 0
     var isPlaying: Bool { player?.isPlaying == true }
     var onInterruption: (() -> Void)?
+    var onPlaybackFinished: ((Bool) -> Void)?
     private let catalogURL: (String) -> URL?
     private var observers: [NSObjectProtocol] = []
     init(catalogURL: @escaping (String) -> URL? = { _ in nil }) {
         self.catalogURL = catalogURL
+        super.init()
         observers.append(NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
             guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
                   raw == AVAudioSession.InterruptionType.began.rawValue else { return }
@@ -48,8 +50,17 @@ import MeditationCore
         try Task.checkCancellation()
         guard generation == playbackGeneration else { throw CancellationError() }
         player = try AVAudioPlayer(contentsOf: url)
+        player?.delegate = self
         player?.currentTime = offset; player?.prepareToPlay()
         guard player?.play() == true else { throw CocoaError(.fileReadUnknown) }
+    }
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        let finishedPlayer = ObjectIdentifier(player)
+        Task { @MainActor [weak self] in
+            guard let self, let current = self.player,
+                  ObjectIdentifier(current) == finishedPlayer else { return }
+            self.onPlaybackFinished?(flag)
+        }
     }
     func stop() {
         playbackGeneration += 1

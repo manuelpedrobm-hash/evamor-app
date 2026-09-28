@@ -89,7 +89,7 @@ La matriz exacta de envío, recepción y silencio está en `Docs/NotificationDel
 
 ## Catálogo de audios
 
-La app incluye los dos Group Sitting necesarios dentro de la propia instalación. No consulta ni descarga audios desde GitHub y ambos funcionan sin conexión. Cada sitting conserva sus cantos de apertura y cierre; **Metta extendido** puede añadirse al final de forma opcional.
+La app incluye los dos Group Sitting necesarios dentro de la propia instalación. No consulta ni descarga audios desde GitHub y ambos funcionan sin conexión. Cada sitting se reproduce completo, con sus propios cantos y Metta; no se añade otra pista ni un tramo de silencio al final.
 
 Los archivos facilitados son audio AAC dentro de contenedores MP4 con una extensión `.mp3` incorrecta. Se incorporan como `.m4a` válidos, sin recomprimir:
 
@@ -98,13 +98,17 @@ Los archivos facilitados son audio AAC dentro de contenedores MP4 con una extens
 
 La incorporación técnica no acredita derechos de distribución. Antes de TestFlight externo o App Store se necesita autorización escrita del titular; el usuario confirmó (17 de septiembre de 2026) contar con esa autorización para las grabaciones de S. N. Goenka.
 
+## Timelapse
+
+El timelapse es opcional, sin sonido y usa la cámara frontal o trasera. La pantalla debe permanecer encendida mientras se graba. Si bloqueas el iPhone o sales de la app, se descarta ese vídeo; la meditación y el audio continúan. Puedes borrar un vídeo individual desde su reproductor sin borrar la sesión del historial.
+
 ## Comportamiento local
 
-- Sesión base de 5 minutos a 8 horas. Los audios seleccionados forman parte de la base y metta se añade al final.
-- La opción **Metta extendido** está en la configuración y permanece desactivada inicialmente. El recurso incluido es Bhavatu Sabba Mangalam (72,65 segundos), facilitado por el usuario.
+- En sesiones personalizadas, la duración base va de 5 minutos a 8 horas y Metta extendido puede añadirse al final. Los sittings completos usan la duración exacta de su grabación y no ofrecen Metta adicional.
+- La opción **Metta extendido** permanece desactivada inicialmente en sesiones personalizadas. El recurso incluido es Bhavatu Sabba Mangalam (72,65 segundos), facilitado por el usuario.
 - La portada permite elegir 5, 15, 30 o 60 minutos con un toque; la configuración completa conserva cualquier otra duración hasta 8 horas.
 - La introducción es el fragmento 0:00–4:19 de Day01 Morning Chantings; metta usa Bhavatu Sabba Mangalam completo. Chanting, cierre y gong mantienen los tonos originales de prueba.
-- La introducción y el cierre se colocan en los extremos de cualquier duración; el silencio absorbe toda la variación. Las grabaciones facilitadas se incorporan a petición del usuario; no se ha verificado autorización para distribución pública.
+- En sesiones personalizadas, la introducción y el cierre se colocan en los extremos de la duración; el silencio absorbe la variación. Los sittings completos se reproducen sin añadir silencio ni otra pista.
 - Una interrupción o desconexión de auriculares pausa la práctica y exige reanudación explícita.
 - Si iOS suspende la app durante el silencio, el reloj se reconstruye desde la fecha persistida y un aviso local puede señalar el final si hay permiso.
 - Fecha, zona y franja se fijan al inicio. Las estadísticas se derivan de UUID únicos y no usan contadores acumulativos.

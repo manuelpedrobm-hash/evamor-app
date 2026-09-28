@@ -42,13 +42,15 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(eightHours.captureInterval, 60, accuracy: 0.0001)
         XCTAssertEqual(eightHours.estimatedFrameCount, 480)
     }
-    func testDynamicCatalogAudioFitsAndLeavesExactSilence() {
+    func testCompleteSittingUsesExactRecordingWithoutExtraMettaOrSilence() {
         let track = CatalogAudioReference(id: "guided", title: "Guided", durationSeconds: 3_872.715465)
-        let valid = SessionConfiguration(minutes: 65, catalogAudio: track)
+        let valid = SessionConfiguration(minutes: 65, audio: [.metta, .chanting], catalogAudio: track)
         XCTAssertTrue(valid.isValid)
         XCTAssertEqual(valid.minimumMinutes, 65)
         XCTAssertEqual(valid.phases.first?.catalogAudio, track)
-        XCTAssertEqual(valid.phases.reduce(0) { $0 + $1.seconds }, 3_900, accuracy: 0.001)
+        XCTAssertEqual(valid.phases.count, 1)
+        XCTAssertEqual(valid.totalSeconds, track.durationSeconds, accuracy: 0.001)
+        XCTAssertEqual(valid.phases.reduce(0) { $0 + $1.seconds }, track.durationSeconds, accuracy: 0.001)
         XCTAssertFalse(SessionConfiguration(minutes: 64, catalogAudio: track).isValid)
         let encoded = try! JSONEncoder().encode(valid)
         XCTAssertEqual(try! JSONDecoder().decode(SessionConfiguration.self, from: encoded), valid)

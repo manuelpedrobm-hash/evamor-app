@@ -10,6 +10,11 @@ import AVFoundation
     return LocalStore(container: try ModelContainer(for: schema, configurations: configuration))
 }
 
+@MainActor private final class SilentTestAudioPlayer: MeditationAudioPlayer {
+    func play(_ phase: SessionPhase, offset: Double) async throws {}
+    func stop() {}
+}
+
 @MainActor final class LocalStoreTests: XCTestCase {
     func testQuickDurationsPersistAndPreserveAudio() throws {
         let store = try makeTestStore()
@@ -161,9 +166,33 @@ import AVFoundation
         let media = try XCTUnwrap(store.timelapseMedia(sessionID: progress.id, owner: "local"))
         XCTAssertEqual(media.filename, "example-timelapse.mp4")
         XCTAssertEqual(media.frameCount, 240)
+        try store.deleteTimelapse(sessionID: progress.id, owner: "local")
+        XCTAssertNil(try store.timelapseMedia(sessionID: progress.id, owner: "local"))
+        XCTAssertEqual(try store.records(owner: "local").count, 1)
+        try store.saveTimelapse(
+            sessionID: progress.id,
+            owner: "local",
+            result: TimelapseResult(url: url, frameCount: 240, duration: 10)
+        )
         try store.deleteAllTimelapses(owner: "local")
         XCTAssertNil(try store.timelapseMedia(sessionID: progress.id, owner: "local"))
         XCTAssertEqual(try store.records(owner: "local").count, 1)
+    }
+
+    func testSittingCompletesWhenAudioEndsWithoutWaitingForForegroundTimer() throws {
+        let store = try makeTestStore()
+        let track = CatalogAudioReference(id: "sitting", title: "Sitting", durationSeconds: 3_872.715465)
+        let engine = SessionEngine(repository: store, audio: SilentTestAudioPlayer(), notifications: NotificationService())
+        engine.start(.init(minutes: 65, catalogAudio: track), owner: "local")
+
+        XCTAssertNotNil(engine.progress)
+        engine.audioDidFinish(successfully: true)
+
+        XCTAssertNil(engine.progress)
+        XCTAssertNil(try store.loadActive())
+        let record = try XCTUnwrap(store.records(owner: "local").first)
+        XCTAssertTrue(record.completed)
+        XCTAssertEqual(record.durationSeconds, track.durationSeconds, accuracy: 0.001)
     }
 
 }

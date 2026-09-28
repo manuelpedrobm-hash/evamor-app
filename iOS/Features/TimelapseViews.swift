@@ -33,7 +33,7 @@ struct TimelapseSetupView: View {
                 VStack(spacing: 8) {
                     Text("Timelapse")
                         .font(.system(.title, design: .rounded, weight: .medium))
-                    Text("Comprueba el encuadre. Al comenzar, esperaremos a escribir el primer fotograma antes de iniciar el temporizador.")
+                    Text("Comprueba el encuadre. Mantén la pantalla encendida durante el timelapse; si bloqueas el iPhone, el vídeo se descartará y el audio continuará.")
                         .font(.subheadline)
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.white.opacity(0.8))
@@ -88,11 +88,16 @@ private struct TimelapseCameraPreview: UIViewRepresentable {
 }
 
 struct TimelapsePlaybackView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
     let url: URL
+    let sessionID: String
     @State private var player: AVPlayer
+    @State private var showingDeleteConfirmation = false
 
-    init(url: URL) {
+    init(url: URL, sessionID: String) {
         self.url = url
+        self.sessionID = sessionID
         _player = State(initialValue: AVPlayer(url: url))
     }
 
@@ -113,12 +118,28 @@ struct TimelapsePlaybackView: View {
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
             .padding(.horizontal, 20)
+            Button("Borrar este timelapse", systemImage: "trash", role: .destructive) {
+                showingDeleteConfirmation = true
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
             Text("El vídeo no contiene sonido y permanece en este iPhone hasta que lo compartas o borres.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 28)
             Spacer()
+        }
+        .confirmationDialog("¿Borrar este timelapse?", isPresented: $showingDeleteConfirmation) {
+            Button("Borrar vídeo", role: .destructive) {
+                player.pause()
+                player.replaceCurrentItem(with: nil)
+                model.deleteTimelapse(sessionID: sessionID)
+                dismiss()
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("La sesión seguirá en el historial, pero el vídeo no se puede recuperar.")
         }
         .background(Palette.stone)
         .navigationTitle("Timelapse")

@@ -60,10 +60,13 @@ enum TimelapseStorage {
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
-    static func remove(filename: String) {
+    static func remove(filename: String) throws {
         guard (filename as NSString).lastPathComponent == filename,
               let directory = try? directory() else { return }
-        try? FileManager.default.removeItem(at: directory.appendingPathComponent(filename))
+        let url = directory.appendingPathComponent(filename)
+        if FileManager.default.fileExists(atPath: url.path) {
+            try FileManager.default.removeItem(at: url)
+        }
     }
 }
 

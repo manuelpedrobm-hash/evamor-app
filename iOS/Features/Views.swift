@@ -30,7 +30,8 @@ struct RootView: View {
                 CompletionCelebrationView(
                     title: model.completionTitle,
                     subtitle: model.completionSubtitle,
-                    timelapseURL: model.lastTimelapseURL
+                    timelapseURL: model.lastTimelapseURL,
+                    timelapseSessionID: model.lastTimelapseSessionID
                 ) { model.showCompletionCelebration = false }
                     .transition(.opacity.combined(with: .scale(scale: 1.02)))
                     .zIndex(10)
@@ -53,8 +54,18 @@ struct RootView: View {
         }
         .animation(.easeInOut(duration: 0.45), value: model.showCompletionCelebration)
         .tint(Palette.green)
-        .fullScreenCover(isPresented: Binding(get: { model.engine.progress != nil }, set: { _ in })) {
-            ActiveSessionView().interactiveDismissDisabled()
+        .fullScreenCover(isPresented: Binding(
+            get: { model.showTimelapseSetup || model.engine.progress != nil },
+            set: { _ in }
+        )) {
+            Group {
+                if model.showTimelapseSetup {
+                    TimelapseSetupView()
+                } else {
+                    ActiveSessionView()
+                }
+            }
+            .interactiveDismissDisabled()
         }
         .alert("No se pudo completar la acción", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("Aceptar") { model.error = nil }
@@ -70,6 +81,7 @@ struct CompletionCelebrationView: View {
     let title: String
     let subtitle: String
     let timelapseURL: URL?
+    let timelapseSessionID: String?
     let dismiss: () -> Void
 
     var body: some View {
@@ -149,8 +161,8 @@ struct CompletionCelebrationView: View {
             dismiss()
         }
         .sheet(isPresented: $showingTimelapse) {
-            if let timelapseURL {
-                NavigationStack { TimelapsePlaybackView(url: timelapseURL) }
+            if let timelapseURL, let timelapseSessionID {
+                NavigationStack { TimelapsePlaybackView(url: timelapseURL, sessionID: timelapseSessionID) }
             }
         }
     }
@@ -300,14 +312,6 @@ struct MeditateView: View {
         .sheet(isPresented: $configuring) { ConfigurationView(configuration: model.configuration) }
         .sheet(isPresented: $showingCatalog) { AudioCatalogView() }
         .sheet(isPresented: $showingDedication) { EvamorDedicationView() }
-        .fullScreenCover(
-            isPresented: Binding(
-                get: { model.showTimelapseSetup },
-                set: { if !$0 { model.cancelTimelapseSetup() } }
-            )
-        ) {
-            TimelapseSetupView().interactiveDismissDisabled()
-        }
         .alert("Sesión", isPresented: Binding(get: { model.engine.error != nil }, set: { if !$0 { model.engine.error = nil } })) {
             Button("Aceptar") { model.engine.error = nil }
         } message: { Text(model.engine.error ?? "") }
@@ -500,9 +504,7 @@ struct ConfigurationView: View {
                                 }
                                 configuration.catalogAudio = track.reference
                                 if track.standalone == true {
-                                    let keepsMetta = configuration.audio.contains(.metta)
                                     configuration.audio = []
-                                    if keepsMetta { configuration.audio.insert(.metta) }
                                     configuration.minutes = max(SessionConfiguration.allowedMinutes.lowerBound, Int(ceil(track.durationSeconds / 60)))
                                 }
                             }
@@ -513,9 +515,7 @@ struct ConfigurationView: View {
                             }
                         }
                     } header: { Text("Extra") } footer: {
-                        Text(isStandalone
-                            ? "Esta grabación ya es una sesión completa: incluye su propia duración y cierre, sin audios ni ajustes adicionales."
-                            : "Se añade como pista adicional al principio de tu sesión. Si aún no está descargada, se descarga al empezar a meditar.")
+                        Text("Cada sitting es una sesión completa con sus propios cantos y Metta. Funciona sin conexión.")
                     }
                 }
                 if !isStandalone {
@@ -536,13 +536,9 @@ struct ConfigurationView: View {
                     }
                 } else {
                     Section {
-                        LabeledContent("Duración", value: durationLabel(configuration.minutes))
-                        Toggle("Metta al final", isOn: Binding(
-                            get: { configuration.audio.contains(.metta) },
-                            set: { if $0 { configuration.audio.insert(.metta) } else { configuration.audio.remove(.metta) } }
-                        ))
+                        LabeledContent("Duración", value: practiceDurationLabel(configuration.totalSeconds))
                     } footer: {
-                        Text("El sitting incluye su propia apertura y cierre. Metta añade Bhavatu Sabba Mangalam al terminar.")
+                        Text("El sitting ya incluye apertura, cierre y Metta; no se añade otro audio al final.")
                     }
                 }
                 Section {
@@ -568,7 +564,7 @@ struct ConfigurationView: View {
                 } header: {
                     Text("Timelapse")
                 } footer: {
-                    Text("Opcional y sin micrófono. Antes de iniciar verás el encuadre y la app comprobará que ha podido escribir un fotograma. Si bloqueas el iPhone, el vídeo se pausa y la meditación continúa.")
+                    Text("Opcional y sin micrófono. Mantén la pantalla encendida durante toda la grabación. Si bloqueas el iPhone o sales de la app, se descarta el timelapse; la meditación y el audio continúan.")
                 }
                 if !configuration.isValid { Text("Selecciona al menos \(configuration.minimumMinutes) minutos para incluir estos audios.").foregroundStyle(.red) }
             }
@@ -644,12 +640,12 @@ struct ActiveSessionView: View {
                 }
                 if model.engine.progress?.configuration.timelapse.isEnabled == true {
                     if model.timelapseInterrupted {
-                        Label("Timelapse interrumpido; la meditación continúa", systemImage: "video.slash")
+                        Label("Timelapse cancelado; la meditación y el audio continúan", systemImage: "video.slash")
                             .foregroundStyle(.white.opacity(0.68))
                     } else {
                         Label(
-                            model.engine.isPaused || model.cameraPausedForBackground ? "Timelapse en pausa" : "Timelapse grabando",
-                            systemImage: model.engine.isPaused || model.cameraPausedForBackground ? "pause.circle.fill" : "record.circle"
+                            model.engine.isPaused ? "Timelapse en pausa" : "Timelapse grabando · mantén la pantalla encendida",
+                            systemImage: model.engine.isPaused ? "pause.circle.fill" : "record.circle"
                         )
                         .foregroundStyle(model.engine.isPaused ? .white.opacity(0.62) : Palette.limestone)
                     }
@@ -779,7 +775,7 @@ struct HistoryView: View {
                                 }())
                                 if let url = model.timelapseURL(for: record) {
                                     NavigationLink {
-                                        TimelapsePlaybackView(url: url)
+                                        TimelapsePlaybackView(url: url, sessionID: record.id)
                                     } label: {
                                         Label("Ver timelapse", systemImage: "play.rectangle.fill")
                                     }

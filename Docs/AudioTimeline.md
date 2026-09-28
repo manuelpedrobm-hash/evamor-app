@@ -1,6 +1,6 @@
 # Línea temporal adaptable
 
-La duración elegida es la duración **base**. Introducción, chanting y cierre caben dentro de esa base; metta extendido se añade después. El silencio ocupa automáticamente la diferencia.
+En las sesiones personalizadas, la duración elegida es la duración **base**. Introducción, chanting y cierre caben dentro de esa base; metta extendido se añade después. El silencio ocupa automáticamente la diferencia. Los dos sittings completos funcionan de otra forma: su duración coincide exactamente con la grabación, que ya contiene cantos y Metta, sin añadir pistas ni silencio.
 
 Recursos actuales, incorporados el 17 de septiembre de 2026:
 

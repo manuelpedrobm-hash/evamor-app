@@ -3,6 +3,7 @@ import SwiftData
 import CloudKit
 import Observation
 import MeditationCore
+import UIKit
 
 @MainActor @Observable final class AppModel {
     let store: LocalStore
@@ -31,9 +32,9 @@ import MeditationCore
     var showTimelapseSetup = false
     var isStartingTimelapse = false
     var isFinalizingTimelapse = false
-    var cameraPausedForBackground = false
     var timelapseInterrupted = false
     var lastTimelapseURL: URL?
+    var lastTimelapseSessionID: String?
     private var activeTimelapseSessionID: String?
 
     init(container: ModelContainer) {
@@ -46,6 +47,7 @@ import MeditationCore
         engine = SessionEngine(repository: store, audio: audio, notifications: notifications)
         sync = SyncService(store: store, cloud: cloud)
         audio.onInterruption = { [weak engine] in engine?.pause() }
+        audio.onPlaybackFinished = { [weak engine] completed in engine?.audioDidFinish(successfully: completed) }
         engine.sharingAllowed = { [weak self] owner in (try? self?.store.preferences(owner: owner).shareSessions) ?? false }
         engine.onCompletion = { [weak self] sessionID in self?.handleCompletion(sessionID: sessionID) }
         engine.onPartialSaved = { [weak self] sessionID, elapsed in self?.handlePartialSaved(sessionID: sessionID, elapsed: elapsed) }
@@ -80,7 +82,9 @@ import MeditationCore
     func reload() {
         do {
             let preferences = try store.preferences(owner: owner)
-            configuration = try preferences.configuration(); reminders = try preferences.reminders()
+            configuration = try preferences.configuration()
+            if configuration.catalogAudio != nil { configuration.audio = [] }
+            reminders = try preferences.reminders()
             shareSessions = preferences.shareSessions; socialNotifications = preferences.socialNotifications
             displayName = preferences.displayName
             records = try store.records(owner: owner); friends = try store.friends(owner: owner)
@@ -102,10 +106,6 @@ import MeditationCore
 
     func foreground() async {
         engine.foreground()
-        if showTimelapseSetup || (activeTimelapseSessionID != nil && cameraPausedForBackground) {
-            timelapse.resume()
-            cameraPausedForBackground = false
-        }
         reload(); await refreshDiagnostics()
         do { try await notifications.reconcile(reminders, continuity: statistics.continuity) } catch { self.error = error.localizedDescription }
         await sync.sync(); reload()
@@ -114,16 +114,24 @@ import MeditationCore
     }
 
     func background() {
-        guard showTimelapseSetup || activeTimelapseSessionID != nil else { return }
-        timelapse.pause()
-        cameraPausedForBackground = true
+        if showTimelapseSetup {
+            showTimelapseSetup = false
+            timelapse.cancel()
+        }
+        if activeTimelapseSessionID != nil && engine.progress != nil && !isFinalizingTimelapse {
+            activeTimelapseSessionID = nil
+            timelapseInterrupted = true
+            timelapse.cancel()
+        }
     }
 
     func beginMeditation() async {
+        guard engine.progress == nil, !showTimelapseSetup, !isStartingTimelapse else { return }
         completionMessage = false
         completionTitle = "Sé feliz"
         completionSubtitle = "Tu sesión se ha guardado"
         lastTimelapseURL = nil
+        lastTimelapseSessionID = nil
         timelapseInterrupted = false
         if let reference = configuration.catalogAudio {
             guard let track = catalog.track(id: reference.id) else {
@@ -152,6 +160,7 @@ import MeditationCore
     func confirmTimelapseStart() async {
         guard !isStartingTimelapse else { return }
         isStartingTimelapse = true
+        defer { isStartingTimelapse = false }
         let sessionID = UUID().uuidString.lowercased()
         do {
             try await timelapse.startRecording(
@@ -159,38 +168,37 @@ import MeditationCore
                 sourceSeconds: configuration.totalSeconds,
                 outputSeconds: configuration.timelapse.outputSeconds
             )
+            guard showTimelapseSetup else {
+                timelapse.cancel()
+                return
+            }
             engine.start(configuration, owner: owner, id: sessionID)
             guard engine.progress?.id == sessionID else { throw TimelapseError.cannotCreateVideo }
             activeTimelapseSessionID = sessionID
-            cameraPausedForBackground = false
             showTimelapseSetup = false
         } catch is CancellationError {
             // Closing the setup while the first frame is pending is intentional.
         } catch {
             timelapse.cancel()
-            self.error = error.localizedDescription
+            if showTimelapseSetup { self.error = error.localizedDescription }
         }
-        isStartingTimelapse = false
     }
 
     func cancelTimelapseSetup() {
+        guard showTimelapseSetup, !isStartingTimelapse, activeTimelapseSessionID == nil else { return }
         timelapse.cancel()
         showTimelapseSetup = false
         isStartingTimelapse = false
-        cameraPausedForBackground = false
     }
 
     func pauseSession() {
         engine.pause()
-        if activeTimelapseSessionID != nil { timelapse.pause() }
+        if activeTimelapseSessionID != nil && engine.isPaused { timelapse.pause() }
     }
 
     func resumeSession() async {
-        if activeTimelapseSessionID != nil {
-            timelapse.resume()
-            cameraPausedForBackground = false
-        }
         engine.resume()
+        if activeTimelapseSessionID != nil && !engine.isPaused { timelapse.resume() }
     }
 
     func endSessionEarly() { engine.finishEarly() }
@@ -223,16 +231,20 @@ import MeditationCore
             return
         }
         isFinalizingTimelapse = true
+        let backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Finalizar timelapse")
         Task {
+            defer {
+                if backgroundTask != .invalid { UIApplication.shared.endBackgroundTask(backgroundTask) }
+            }
             do {
                 let result = try await timelapse.finish()
                 try store.saveTimelapse(sessionID: sessionID, owner: owner, result: result)
                 lastTimelapseURL = result.url
+                lastTimelapseSessionID = sessionID
             } catch {
                 self.error = "La práctica se ha guardado, pero el timelapse no pudo finalizarse. \(error.localizedDescription)"
             }
             activeTimelapseSessionID = nil
-            cameraPausedForBackground = false
             isFinalizingTimelapse = false
             showCompletionCelebration = true
             await finishCompletionWork()
@@ -257,6 +269,8 @@ import MeditationCore
     func saveConfiguration(_ value: SessionConfiguration) {
         guard value.isValid else { return }
         do {
+            var value = value
+            if value.catalogAudio != nil { value.audio = [] }
             let preferences = try store.preferences(owner: owner)
             preferences.configurationData = try JSONEncoder().encode(value)
             try store.commit(); configuration = value
@@ -277,8 +291,7 @@ import MeditationCore
 
     func apply(_ profile: CatalogSessionProfile) {
         let track = profile.trackID.flatMap { catalog.track(id: $0) }
-        var audio = profile.builtInAudio ?? []
-        if self.configuration.audio.contains(.metta) { audio.insert(.metta) }
+        let audio = track == nil ? (profile.builtInAudio ?? []) : []
         let configuration = SessionConfiguration(
             minutes: profile.minutes,
             audio: audio,
@@ -373,9 +386,11 @@ import MeditationCore
     func deleteHistory() async {
         do {
             for filename in try store.timelapseFilenames(owner: owner) {
-                TimelapseStorage.remove(filename: filename)
+                try TimelapseStorage.remove(filename: filename)
             }
             try store.deleteHistory(owner: owner)
+            lastTimelapseURL = nil
+            lastTimelapseSessionID = nil
             reload()
             await sync.sync()
             reload()
@@ -385,9 +400,25 @@ import MeditationCore
     func deleteAllTimelapses() {
         do {
             for filename in try store.timelapseFilenames(owner: owner) {
-                TimelapseStorage.remove(filename: filename)
+                try TimelapseStorage.remove(filename: filename)
             }
             try store.deleteAllTimelapses(owner: owner)
+            lastTimelapseURL = nil
+            lastTimelapseSessionID = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    func deleteTimelapse(sessionID: String) {
+        do {
+            guard let media = try store.timelapseMedia(sessionID: sessionID, owner: owner) else { return }
+            try TimelapseStorage.remove(filename: media.filename)
+            try store.deleteTimelapse(sessionID: sessionID, owner: owner)
+            if lastTimelapseSessionID == sessionID {
+                lastTimelapseURL = nil
+                lastTimelapseSessionID = nil
+            }
         } catch {
             self.error = error.localizedDescription
         }
