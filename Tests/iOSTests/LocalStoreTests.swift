@@ -12,6 +12,7 @@ import AVFoundation
 
 @MainActor private final class SilentTestAudioPlayer: MeditationAudioPlayer {
     func play(_ phase: SessionPhase, offset: Double) async throws {}
+    func playTimeline(_ phases: [SessionPhase], offset: Double) async throws {}
     func stop() {}
 }
 
@@ -193,6 +194,24 @@ import AVFoundation
         let record = try XCTUnwrap(store.records(owner: "local").first)
         XCTAssertTrue(record.completed)
         XCTAssertEqual(record.durationSeconds, track.durationSeconds, accuracy: 0.001)
+    }
+
+    func testBuiltInTimelineIncludesSilenceAndFinishesWithoutForegroundTimer() async throws {
+        let phases = [
+            SessionPhase(audio: .closing, seconds: AudioKind.closing.seconds),
+            SessionPhase(audio: nil, seconds: 125),
+            SessionPhase(audio: .metta, seconds: AudioKind.metta.seconds)
+        ]
+        let composition = try await AudioService.makeTimeline(phases)
+        XCTAssertEqual(CMTimeGetSeconds(composition.duration), phases.reduce(0) { $0 + $1.seconds }, accuracy: 0.001)
+
+        let store = try makeTestStore()
+        let engine = SessionEngine(repository: store, audio: SilentTestAudioPlayer(), notifications: NotificationService())
+        engine.start(.init(minutes: 5, audio: [.introduction, .metta]), owner: "local")
+        XCTAssertNotNil(engine.progress)
+        engine.audioDidFinish(successfully: true)
+        XCTAssertNil(engine.progress)
+        XCTAssertTrue(try XCTUnwrap(store.records(owner: "local").first).completed)
     }
 
 }

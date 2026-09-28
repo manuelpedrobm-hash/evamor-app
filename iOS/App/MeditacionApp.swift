@@ -42,7 +42,7 @@ import UserNotifications
                     .task { delegate.model = model; await model.start() }
                     .onChange(of: scenePhase) { _, phase in
                         if phase == .active { Task { await model.foreground() } }
-                        else if phase == .background { model.background() }
+                        else { model.background() }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
                         Task { await model.foreground() }

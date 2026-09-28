@@ -62,6 +62,23 @@ import MeditationCore
         }
         guard !isPaused, let current = progress.phase(at: clock.now) else { return }
         phaseTitle = current.phase.catalogAudio?.title ?? current.phase.audio?.title ?? "Silencio"
+        // A built-in practice has one continuous audio timeline, including its
+        // silent interval. iOS can suspend timers while locked, so the closing
+        // chant must not depend on tick() firing at the phase boundary.
+        if progress.configuration.catalogAudio == nil,
+           progress.configuration.phases.contains(where: { $0.audio != nil }) {
+            guard playingIndex != -1 else { return }
+            playbackTask?.cancel(); audio.stop(); playingIndex = -1
+            let phases = progress.configuration.phases
+            let offset = progress.elapsed(at: clock.now)
+            playbackTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                do { try await audio.playTimeline(phases, offset: offset) }
+                catch is CancellationError { }
+                catch { pause(); self.error = "No se pudo reproducir el audio. La sesión está pausada." }
+            }
+            return
+        }
         guard playingIndex != current.index else { return }
         playbackTask?.cancel(); audio.stop(); playingIndex = current.index
         if current.phase.audio != nil || current.phase.catalogAudio != nil {
@@ -74,8 +91,9 @@ import MeditationCore
         }
     }
     func audioDidFinish(successfully: Bool) {
-        guard let progress, !isPaused, progress.configuration.catalogAudio != nil,
-              playingIndex == 0 else { return }
+        guard let progress, !isPaused,
+              (progress.configuration.catalogAudio != nil && playingIndex == 0) ||
+              (progress.configuration.catalogAudio == nil && playingIndex == -1) else { return }
         guard successfully else {
             pause()
             error = "El sitting se interrumpió antes de terminar. Puedes reanudarlo desde la sesión."
