@@ -82,6 +82,26 @@ import MeditationCore
     init(id: String) { self.id = id; receivedAt = .now }
 }
 
+@Model final class TimelapseMedia {
+    @Attribute(.unique) var key: String
+    var owner: String
+    var sessionID: String
+    var filename: String
+    var createdAt: Date
+    var frameCount: Int
+    var duration: Double
+
+    init(owner: String, sessionID: String, filename: String, frameCount: Int, duration: Double) {
+        key = owner + ":" + sessionID
+        self.owner = owner
+        self.sessionID = sessionID
+        self.filename = filename
+        createdAt = .now
+        self.frameCount = frameCount
+        self.duration = duration
+    }
+}
+
 @MainActor protocol SessionRepository {
     func saveActive(_ progress: SessionProgress, owner: String) throws
     func loadActive() throws -> (String, SessionProgress)?
@@ -137,12 +157,48 @@ import MeditationCore
         try context.fetch(FetchDescriptor<MeditationSession>(sortBy: [SortDescriptor(\.startedAt, order: .reverse)]))
             .filter { $0.owner == owner }.map { try $0.record() }
     }
+    func saveTimelapse(sessionID: String, owner: String, result: TimelapseResult) throws {
+        let key = owner + ":" + sessionID
+        let items = try context.fetch(FetchDescriptor<TimelapseMedia>())
+        if let item = items.first(where: { $0.key == key }) {
+            item.filename = result.url.lastPathComponent
+            item.createdAt = .now
+            item.frameCount = result.frameCount
+            item.duration = result.duration
+        } else {
+            context.insert(TimelapseMedia(
+                owner: owner,
+                sessionID: sessionID,
+                filename: result.url.lastPathComponent,
+                frameCount: result.frameCount,
+                duration: result.duration
+            ))
+        }
+        try commit()
+    }
+    func timelapseMedia(sessionID: String, owner: String) throws -> TimelapseMedia? {
+        try context.fetch(FetchDescriptor<TimelapseMedia>())
+            .first { $0.owner == owner && $0.sessionID == sessionID }
+    }
+    func timelapseFilenames(owner: String) throws -> [String] {
+        try context.fetch(FetchDescriptor<TimelapseMedia>())
+            .filter { $0.owner == owner }.map(\.filename)
+    }
+    func deleteAllTimelapses(owner: String) throws {
+        for item in try context.fetch(FetchDescriptor<TimelapseMedia>()) where item.owner == owner {
+            context.delete(item)
+        }
+        try commit()
+    }
     func deleteHistory(owner: String) throws {
         for session in try context.fetch(FetchDescriptor<MeditationSession>()) where session.owner == owner {
             context.delete(session)
         }
         let operations = try context.fetch(FetchDescriptor<SyncOperation>()).filter { $0.owner == owner }
         for operation in operations where operation.kind == "session" { context.delete(operation) }
+        for media in try context.fetch(FetchDescriptor<TimelapseMedia>()) where media.owner == owner {
+            context.delete(media)
+        }
         if !operations.contains(where: { $0.kind == "deleteHistory" }) {
             context.insert(SyncOperation(owner: owner, kind: "deleteHistory", payload: Data(), id: owner + ":deleteHistory"))
         }

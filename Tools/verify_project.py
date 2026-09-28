@@ -121,7 +121,7 @@ check("StartMeditationIntent" in swift_sources and "AppShortcutsProvider" in swi
 check('colors: [Palette.green.opacity(0.58), Palette.night.opacity(0.92)]' in views, "Fondo tranquilo y legible de cierre")
 check("OldStudentAccess.verify" in access and "SecureField" in access and "oldStudentAccessGranted" in swift_sources, "Puerta local para antiguos alumnos")
 check("SHA256.hash" in access and "behappy" not in access, "La contraseña no se guarda en texto claro en la aplicación")
-check("EvamorAudioCatalogURL" in info and "downloadURL" in catalog and "checksumMismatch" in catalog, "Catálogo remoto HTTPS con verificación de integridad")
+check("EvamorAudioCatalogURL" not in info and "URLSession.shared" not in catalog, "Sittings locales sin dependencia del catálogo remoto")
 check("savedProfiles" in catalog and "togglePreview" in catalog, "Perfiles guardados y vista previa de audio")
 check("completed: Bool" in core and "plannedDurationSeconds" in core and "partialSessions" in core, "Prácticas parciales conservan tiempo real y previsto")
 check("func finishEarly" in swift_sources and "onPartialSaved" in swift_sources and 'Guardar práctica parcial' in views, "Terminar antes guarda y presenta la práctica parcial")

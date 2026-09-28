@@ -3,7 +3,7 @@
 ## Listo en el proyecto
 
 - Datos locales con SwiftData, funcionamiento sin conexión y restauración del temporizador.
-- Catálogo HTTPS con caché, validación de tamaño, SHA-256 y duración.
+- Dos sittings completos incluidos y disponibles sin conexión.
 - Declaración de privacidad sin seguimiento ni publicidad.
 - Exportación y borrado del historial.
 - Avisos sociales mínimos sin nombre, duración ni selección de audio.
@@ -14,7 +14,7 @@
 
 1. ~~Obtener autorización escrita para editar, incorporar y redistribuir cada grabación de S. N. Goenka.~~ Resuelto: el usuario confirma (17 de septiembre de 2026) que ya cuenta con esa autorización. Conviene guardar el documento/correo de la autorización junto al proyecto por si App Review lo solicita.
 2. ~~Elegir el identificador y equipo de distribución definitivos y subir iconos, capturas, descripción, categoría, soporte y política de privacidad en App Store Connect.~~ Textos, capturas a 1320×2868 (6,9"), icono, soporte y privacidad ya listos — ver [AppStoreListing.md](AppStoreListing.md). Política: <https://manuelpedrobm-hash.github.io/evamor-privacidad/>. Soporte: <https://manuelpedrobm-hash.github.io/evamor-soporte/>. Solo falta pegarlo en App Store Connect el día que exista la ficha (paso 6 del guion de abajo), y decidir el identificador/equipo definitivo si al final no es este del amigo.
-3. ~~Configurar una URL HTTPS definitiva para el catálogo y publicar su política de conservación de logs.~~ Resuelto: catálogo publicado en `https://manuelpedrobm-hash.github.io/evamor-audio/catalog.json` (repositorio público `manuelpedrobm-hash/evamor-audio`, GitHub Pages). Los cinco Group Sitting ya no van embebidos en el binario. El registro de acceso lo cubre la política de privacidad de GitHub Pages, no una propia.
+3. ~~Eliminar la dependencia del catálogo remoto.~~ Resuelto: los sittings con instrucciones largas y cortas se incluyen en la app y no dependen de GitHub.
 4. Crear el contenedor CloudKit definitivo, desplegar el esquema en producción y probar invitaciones con dos Apple ID reales.
 5. Probar bloqueo, llamadas, auriculares, batería y sesiones de ocho horas en varios iPhone físicos.
 6. Distribuir mediante TestFlight y resolver los informes antes de producción.

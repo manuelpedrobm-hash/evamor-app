@@ -29,10 +29,21 @@ struct RootView: View {
             if model.showCompletionCelebration {
                 CompletionCelebrationView(
                     title: model.completionTitle,
-                    subtitle: model.completionSubtitle
+                    subtitle: model.completionSubtitle,
+                    timelapseURL: model.lastTimelapseURL
                 ) { model.showCompletionCelebration = false }
                     .transition(.opacity.combined(with: .scale(scale: 1.02)))
                     .zIndex(10)
+            }
+            if model.isFinalizingTimelapse {
+                ZStack {
+                    Palette.night.opacity(0.82).ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        ProgressView().tint(.white).controlSize(.large)
+                        Text("Preparando tu timelapse…").foregroundStyle(.white)
+                    }
+                }
+                .zIndex(9)
             }
             if !hasCompletedOnboarding {
                 OnboardingView()
@@ -55,8 +66,10 @@ struct CompletionCelebrationView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathing = false
     @State private var contentVisible = false
+    @State private var showingTimelapse = false
     let title: String
     let subtitle: String
+    let timelapseURL: URL?
     let dismiss: () -> Void
 
     var body: some View {
@@ -102,6 +115,16 @@ struct CompletionCelebrationView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity)
                     .opacity(contentVisible ? 1 : 0)
+                if timelapseURL != nil {
+                    Button("Ver timelapse", systemImage: "play.rectangle.fill") {
+                        showingTimelapse = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .tint(.white)
+                    .foregroundStyle(Palette.green)
+                    .opacity(contentVisible ? 1 : 0)
+                }
                 Button("Continuar") { dismiss() }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)
@@ -117,12 +140,18 @@ struct CompletionCelebrationView: View {
             if !reduceMotion {
                 withAnimation(.easeInOut(duration: 2.6).repeatForever(autoreverses: true)) { breathing = true }
             }
+            guard timelapseURL == nil else { return }
 #if DEBUG
             guard !ProcessInfo.processInfo.arguments.contains("-showCompletionPreview") else { return }
 #endif
             try? await Task.sleep(for: .seconds(7))
             guard !Task.isCancelled else { return }
             dismiss()
+        }
+        .sheet(isPresented: $showingTimelapse) {
+            if let timelapseURL {
+                NavigationStack { TimelapsePlaybackView(url: timelapseURL) }
+            }
         }
     }
 }
@@ -192,6 +221,14 @@ struct MeditateView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
+                        if model.configuration.timelapse.isEnabled {
+                            Label(
+                                "Timelapse · cámara \(model.configuration.timelapse.camera.title.lowercased()) · sin sonido",
+                                systemImage: "video.fill"
+                            )
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(Palette.green)
+                        }
                     }
                     .padding(.horizontal, 22)
                     .padding(.vertical, 16)
@@ -263,6 +300,14 @@ struct MeditateView: View {
         .sheet(isPresented: $configuring) { ConfigurationView(configuration: model.configuration) }
         .sheet(isPresented: $showingCatalog) { AudioCatalogView() }
         .sheet(isPresented: $showingDedication) { EvamorDedicationView() }
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { model.showTimelapseSetup },
+                set: { if !$0 { model.cancelTimelapseSetup() } }
+            )
+        ) {
+            TimelapseSetupView().interactiveDismissDisabled()
+        }
         .alert("Sesión", isPresented: Binding(get: { model.engine.error != nil }, set: { if !$0 { model.engine.error = nil } })) {
             Button("Aceptar") { model.engine.error = nil }
         } message: { Text(model.engine.error ?? "") }
@@ -446,7 +491,7 @@ struct ConfigurationView: View {
             Form {
                 if !model.catalog.tracks.isEmpty {
                     Section {
-                        Picker("Cántico o Group Sitting", selection: Binding(
+                        Picker("Sitting", selection: Binding(
                             get: { configuration.catalogAudio?.id },
                             set: { id in
                                 guard let id, let track = model.catalog.track(id: id) else {
@@ -455,7 +500,9 @@ struct ConfigurationView: View {
                                 }
                                 configuration.catalogAudio = track.reference
                                 if track.standalone == true {
+                                    let keepsMetta = configuration.audio.contains(.metta)
                                     configuration.audio = []
+                                    if keepsMetta { configuration.audio.insert(.metta) }
                                     configuration.minutes = max(SessionConfiguration.allowedMinutes.lowerBound, Int(ceil(track.durationSeconds / 60)))
                                 }
                             }
@@ -490,12 +537,38 @@ struct ConfigurationView: View {
                 } else {
                     Section {
                         LabeledContent("Duración", value: durationLabel(configuration.minutes))
+                        Toggle("Metta al final", isOn: Binding(
+                            get: { configuration.audio.contains(.metta) },
+                            set: { if $0 { configuration.audio.insert(.metta) } else { configuration.audio.remove(.metta) } }
+                        ))
+                    } footer: {
+                        Text("El sitting incluye su propia apertura y cierre. Metta añade Bhavatu Sabba Mangalam al terminar.")
                     }
                 }
                 Section {
                     Button("Explorar audios y perfiles", systemImage: "waveform.badge.magnifyingglass") {
                         showingCatalog = true
                     }
+                }
+                Section {
+                    Toggle("Crear timelapse", isOn: $configuration.timelapse.isEnabled)
+                        .accessibilityHint("Usa la cámara sin grabar sonido")
+                    if configuration.timelapse.isEnabled {
+                        Picker("Cámara", selection: $configuration.timelapse.camera) {
+                            ForEach(TimelapseCamera.allCases, id: \.self) { camera in
+                                Text(camera.title).tag(camera)
+                            }
+                        }
+                        Picker("Duración máxima del vídeo", selection: $configuration.timelapse.outputSeconds) {
+                            ForEach(TimelapseConfiguration.allowedOutputSeconds, id: \.self) { seconds in
+                                Text("\(seconds) segundos").tag(seconds)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Timelapse")
+                } footer: {
+                    Text("Opcional y sin micrófono. Antes de iniciar verás el encuadre y la app comprobará que ha podido escribir un fotograma. Si bloqueas el iPhone, el vídeo se pausa y la meditación continúa.")
                 }
                 if !configuration.isValid { Text("Selecciona al menos \(configuration.minimumMinutes) minutos para incluir estos audios.").foregroundStyle(.red) }
             }
@@ -568,6 +641,18 @@ struct ActiveSessionView: View {
                             .foregroundStyle(.white.opacity(0.48))
                     }
                     .padding(.horizontal, 20)
+                }
+                if model.engine.progress?.configuration.timelapse.isEnabled == true {
+                    if model.timelapseInterrupted {
+                        Label("Timelapse interrumpido; la meditación continúa", systemImage: "video.slash")
+                            .foregroundStyle(.white.opacity(0.68))
+                    } else {
+                        Label(
+                            model.engine.isPaused || model.cameraPausedForBackground ? "Timelapse en pausa" : "Timelapse grabando",
+                            systemImage: model.engine.isPaused || model.cameraPausedForBackground ? "pause.circle.fill" : "record.circle"
+                        )
+                        .foregroundStyle(model.engine.isPaused ? .white.opacity(0.62) : Palette.limestone)
+                    }
                 }
                 Spacer()
                 Button(model.engine.isPaused ? "Reanudar" : "Pausar", systemImage: model.engine.isPaused ? "play.fill" : "pause.fill") {
@@ -692,6 +777,16 @@ struct HistoryView: View {
                                         + (record.configuration.catalogAudio.map { [$0.title] } ?? [])
                                     return names.isEmpty ? "Sin audio" : names.joined(separator: ", ")
                                 }())
+                                if let url = model.timelapseURL(for: record) {
+                                    NavigationLink {
+                                        TimelapsePlaybackView(url: url)
+                                    } label: {
+                                        Label("Ver timelapse", systemImage: "play.rectangle.fill")
+                                    }
+                                    ShareLink(item: url, preview: SharePreview("Mi práctica en Ecuanimidad")) {
+                                        Label("Compartir una copia", systemImage: "square.and.arrow.up")
+                                    }
+                                }
                             }.navigationTitle("Sesión")
                         } label: {
                             HStack {
@@ -939,14 +1034,15 @@ struct SettingsView: View {
     @State private var privacySheet = false
     @State private var exporting = false
     @State private var deleteConfirmation = false
+    @State private var deleteTimelapsesConfirmation = false
     @State private var showingCatalog = false
     @State private var exportDocument = HistoryExportDocument(records: [])
     var body: some View {
         Form {
             Section("Audios y perfiles") {
-                Button("Abrir catálogo", systemImage: "waveform") { showingCatalog = true }
+                Button("Abrir sittings", systemImage: "waveform") { showingCatalog = true }
                 LabeledContent("Revisión", value: model.catalog.document.revision)
-                Text("Los catálogos remotos permiten añadir audios y perfiles sin publicar otra versión.")
+                Text("Instrucciones largas y cortas incluidas en la app, sin descargas ni dependencia de GitHub.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section("Recordatorios personales") {
@@ -987,6 +1083,15 @@ struct SettingsView: View {
             } footer: {
                 Text("El borrado es inmediato en este iPhone y se aplica en iCloud al recuperar conexión. No elimina amigos ni preferencias.")
             }
+            Section {
+                Button("Borrar todos los timelapses", systemImage: "video.slash", role: .destructive) {
+                    deleteTimelapsesConfirmation = true
+                }
+            } header: {
+                Text("Timelapses")
+            } footer: {
+                Text("Los vídeos solo se guardan en este iPhone. Borrarlos no elimina las sesiones del historial.")
+            }
             Section("Privacidad y ayuda") {
                 Button("Cómo funciona tu privacidad", systemImage: "hand.raised") { privacySheet = true }
                 Button("Volver a ver la bienvenida", systemImage: "rectangle.portrait.and.arrow.forward") {
@@ -1019,6 +1124,12 @@ struct SettingsView: View {
         } message: {
             Text("Las sesiones y estadísticas se eliminarán. Esta acción no se puede deshacer.")
         }
+        .confirmationDialog("¿Borrar todos los timelapses?", isPresented: $deleteTimelapsesConfirmation, titleVisibility: .visible) {
+            Button("Borrar vídeos", role: .destructive) { model.deleteAllTimelapses() }
+            Button("Cancelar", role: .cancel) { }
+        } message: {
+            Text("Las sesiones seguirán apareciendo en el historial, pero los vídeos no se pueden recuperar.")
+        }
     }
 }
 
@@ -1032,6 +1143,7 @@ struct PrivacySummaryView: View {
                     PrivacyRow(icon: "iphone", title: "En este iPhone", detail: "Temporizador, configuración e historial se guardan localmente y funcionan sin conexión.")
                     PrivacyRow(icon: "icloud", title: "En iCloud", detail: "Si está disponible, las sesiones se sincronizan en tu base privada. Las invitaciones comparten únicamente señales mínimas de práctica.")
                     PrivacyRow(icon: "eye.slash", title: "Sin seguimiento", detail: "No hay publicidad, analítica de terceros, contactos, ubicación ni perfiles comerciales.")
+                    PrivacyRow(icon: "video", title: "Timelapse privado", detail: "La cámara solo se usa si activas el timelapse. No se graba sonido y el vídeo permanece en este iPhone hasta que decidas compartirlo o borrarlo.")
                 } header: {
                     Text("Qué ocurre con tus datos")
                 }

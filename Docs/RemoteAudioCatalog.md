@@ -1,4 +1,6 @@
-# Catálogo remoto de audios
+# Catálogo remoto de audios (archivado)
+
+Esta versión de la app ya no usa este sistema. Los sittings con instrucciones largas y cortas se incluyen en la instalación y no se descargan desde GitHub. El resto de este documento se conserva únicamente como referencia histórica.
 
 Después de instalar esta versión, Ecuanimidad puede recibir audios y perfiles nuevos sin actualizarse desde App Store. La aplicación descarga un `catalog.json` mediante HTTPS, verifica el tamaño, el hash SHA-256 y la duración de cada audio, y guarda una copia local para usarla sin conexión. Si una actualización falla, conserva el catálogo y los archivos anteriores.
 

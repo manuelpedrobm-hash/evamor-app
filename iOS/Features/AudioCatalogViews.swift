@@ -5,7 +5,6 @@ import MeditationCore
 struct AudioCatalogView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @State private var endpoint = ""
     @State private var profileName = ""
     @State private var showingSaveProfile = false
 
@@ -51,30 +50,20 @@ struct AudioCatalogView: View {
                                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                Image(systemName: model.catalog.isAvailable(track) ? "checkmark.circle.fill" : "icloud.and.arrow.down")
-                                    .foregroundStyle(model.catalog.isAvailable(track) ? Palette.green : .secondary)
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(Palette.green)
                             }
                             HStack {
                                 Button("Vista previa", systemImage: "play.fill") {
                                     Task { await model.catalog.togglePreview(track) }
                                 }
                                 .buttonStyle(.bordered)
-                                if !model.catalog.isAvailable(track) {
-                                    Button(model.catalog.isDownloading.contains(track.id) ? "Descargando…" : "Descargar") {
-                                        Task {
-                                            do { _ = try await model.catalog.download(track) }
-                                            catch { model.error = error.localizedDescription }
-                                        }
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(model.catalog.isDownloading.contains(track.id))
-                                }
                             }
                         }
                         .padding(.vertical, 4)
                     }
                 } header: { Text("Audios") } footer: {
-                    Text("Los audios descargados se verifican antes de activarse y quedan disponibles sin conexión.")
+                    Text("Los dos sittings están incluidos en la app y funcionan sin conexión.")
                 }
 
                 Section {
@@ -83,27 +72,10 @@ struct AudioCatalogView: View {
                     }
                 }
 
-                Section {
-                    TextField("https://…/catalog.json", text: $endpoint)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
-                        .autocorrectionDisabled()
-                    Button(model.catalog.isRefreshing ? "Actualizando…" : "Guardar y actualizar") {
-                        model.catalog.saveEndpoint(endpoint)
-                        Task { await model.catalog.refresh() }
-                    }
-                    .disabled(model.catalog.isRefreshing)
-                    if let message = model.catalog.message {
-                        Text(message).font(.footnote).foregroundStyle(.secondary)
-                    }
-                } header: { Text("Actualizaciones sin App Store") } footer: {
-                    Text("Esta dirección se configura una vez. Después, publicar un catálogo nuevo añade audios y perfiles sin actualizar la app.")
-                }
             }
             .navigationTitle("Audios y perfiles")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Cerrar") { dismiss() } } }
-            .onAppear { endpoint = model.catalog.endpoint }
             .onDisappear { model.catalog.stopPreview() }
             .alert("Guardar perfil", isPresented: $showingSaveProfile) {
                 TextField("Nombre", text: $profileName)

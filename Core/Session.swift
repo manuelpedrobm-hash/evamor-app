@@ -31,33 +31,85 @@ public struct CatalogAudioReference: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+public enum TimelapseCamera: String, Codable, CaseIterable, Sendable {
+    case front
+    case back
+
+    public var title: String {
+        switch self {
+        case .front: return "Frontal"
+        case .back: return "Trasera"
+        }
+    }
+}
+
+public struct TimelapseConfiguration: Codable, Equatable, Sendable {
+    public var isEnabled: Bool
+    public var camera: TimelapseCamera
+    public var outputSeconds: Int
+
+    public init(isEnabled: Bool = false, camera: TimelapseCamera = .back, outputSeconds: Int = 20) {
+        self.isEnabled = isEnabled
+        self.camera = camera
+        self.outputSeconds = Self.allowedOutputSeconds.contains(outputSeconds) ? outputSeconds : 20
+    }
+
+    public static let allowedOutputSeconds = [10, 20, 30]
+}
+
+public struct TimelapsePlan: Equatable, Sendable {
+    public static let framesPerSecond = 24
+    public let sourceSeconds: Double
+    public let outputSeconds: Int
+    public let captureInterval: Double
+
+    public init(sourceSeconds: Double, outputSeconds: Int) {
+        self.sourceSeconds = max(1, sourceSeconds)
+        self.outputSeconds = TimelapseConfiguration.allowedOutputSeconds.contains(outputSeconds) ? outputSeconds : 20
+        captureInterval = max(0.2, self.sourceSeconds / Double(Self.framesPerSecond * self.outputSeconds))
+    }
+
+    public var estimatedFrameCount: Int {
+        max(1, Int(ceil(sourceSeconds / captureInterval)))
+    }
+
+    public var estimatedOutputSeconds: Double {
+        Double(estimatedFrameCount) / Double(Self.framesPerSecond)
+    }
+}
+
 public struct SessionConfiguration: Codable, Equatable, Sendable {
     public var minutes: Int
     public var audio: Set<AudioKind>
     public var catalogAudio: CatalogAudioReference?
+    public var timelapse: TimelapseConfiguration
     public init(
         minutes: Int = 60,
         audio: Set<AudioKind> = [],
-        catalogAudio: CatalogAudioReference? = nil
+        catalogAudio: CatalogAudioReference? = nil,
+        timelapse: TimelapseConfiguration = .init()
     ) {
         self.minutes = minutes
         self.audio = audio
         self.catalogAudio = catalogAudio
+        self.timelapse = timelapse
     }
     private enum CodingKeys: String, CodingKey {
-        case minutes, audio, catalogAudio
+        case minutes, audio, catalogAudio, timelapse
     }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         minutes = try values.decode(Int.self, forKey: .minutes)
         audio = try values.decode(Set<AudioKind>.self, forKey: .audio)
         catalogAudio = try values.decodeIfPresent(CatalogAudioReference.self, forKey: .catalogAudio)
+        timelapse = try values.decodeIfPresent(TimelapseConfiguration.self, forKey: .timelapse) ?? .init()
     }
     public func encode(to encoder: Encoder) throws {
         var values = encoder.container(keyedBy: CodingKeys.self)
         try values.encode(minutes, forKey: .minutes)
         try values.encode(audio, forKey: .audio)
         try values.encodeIfPresent(catalogAudio, forKey: .catalogAudio)
+        try values.encode(timelapse, forKey: .timelapse)
     }
     public var minimumMinutes: Int {
         let builtIn = audio.filter { $0 != .metta }.reduce(0) { $0 + $1.seconds }

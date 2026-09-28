@@ -14,13 +14,13 @@ El acceso de antiguo alumno se comprueba en el dispositivo. La aplicación no gu
 
 Si el usuario activa iCloud, sus prácticas completas y parciales se sincronizan en su base privada de CloudKit. La función Amigos solo crea una señal al completar una sesión y comparte mediante CloudKit un identificador aleatorio, el momento de finalización y si la práctica fue matutina o vespertina. Las prácticas parciales no generan avisos. La señal no contiene duración, audio seleccionado ni notas. El aviso mostrado al receptor no revela el nombre en la pantalla bloqueada.
 
-El catálogo de audios consulta `https://manuelpedrobm-hash.github.io/evamor-audio/catalog.json` y descarga únicamente los archivos elegidos o necesarios para un perfil. El alojamiento (GitHub Pages) puede recibir la dirección IP y datos técnicos habituales de la conexión conforme a la política de privacidad de GitHub. Los audios descargados permanecen en el dispositivo para su reproducción sin conexión.
+Los dos sittings de audio se incluyen dentro de la aplicación. Su reproducción no requiere descargar archivos ni contactar con GitHub u otro alojamiento externo.
 
 El usuario puede exportar y borrar su historial, desactivar iCloud social, dejar canales compartidos y retirar accesos desde la aplicación.
 
 ## Base legal y finalidad
 
-Los datos guardados en el iPhone son necesarios para prestar el propio servicio (recordar tu configuración e historial). La sincronización con iCloud, la función Amigos y la descarga desde el catálogo remoto son opcionales y solo se activan si tú los enciendes explícitamente: la base legal de esos tratamientos es tu consentimiento, que puedes retirar en cualquier momento desde Ajustes.
+Los datos guardados en el iPhone son necesarios para prestar el propio servicio (recordar tu configuración e historial). La sincronización con iCloud y la función Amigos son opcionales y solo se activan si tú las enciendes explícitamente: la base legal de esos tratamientos es tu consentimiento, que puedes retirar en cualquier momento desde Ajustes.
 
 ## Conservación
 
@@ -28,7 +28,7 @@ No fijamos un plazo de borrado automático porque casi todo el tratamiento ocurr
 
 ## Destinatarios y transferencias
 
-Si activas iCloud, Apple (como encargado del tratamiento a través de CloudKit) procesa esos datos según su propio acuerdo de tratamiento de datos para desarrolladores; puede implicar transferencias a servidores de Apple fuera de España sujetas a las garantías que Apple ofrece a los desarrolladores (cláusulas contractuales tipo u otro mecanismo equivalente). Si descargas audios del catálogo remoto, GitHub (como alojamiento HTTPS vía GitHub Pages) puede recibir tu dirección IP y datos técnicos habituales de conexión conforme a su propia política.
+Si activas iCloud, Apple (como encargado del tratamiento a través de CloudKit) procesa esos datos según su propio acuerdo de tratamiento de datos para desarrolladores; puede implicar transferencias a servidores de Apple fuera de España sujetas a las garantías que Apple ofrece a los desarrolladores (cláusulas contractuales tipo u otro mecanismo equivalente).
 
 ## Tus derechos
 

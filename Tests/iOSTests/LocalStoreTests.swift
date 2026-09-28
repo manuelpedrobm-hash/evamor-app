@@ -5,7 +5,7 @@ import AVFoundation
 @testable import Meditacion
 
 @MainActor private func makeTestStore() throws -> LocalStore {
-    let schema = Schema([MeditationSession.self, ActiveSession.self, Preferences.self, SyncOperation.self, FriendSnapshot.self, SocialReceipt.self])
+    let schema = Schema([MeditationSession.self, ActiveSession.self, Preferences.self, SyncOperation.self, FriendSnapshot.self, SocialReceipt.self, TimelapseMedia.self])
     let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
     return LocalStore(container: try ModelContainer(for: schema, configurations: configuration))
 }
@@ -127,20 +127,12 @@ import AVFoundation
         XCTAssertTrue(AudioCatalogService(defaults: defaults).savedProfiles.isEmpty)
     }
 
-    func testBundledCatalogStartsEmptyAndReliesOnTheRemoteCatalog() throws {
-        // AudioCatalogService caches any remote catalog it has ever fetched in
-        // Application Support, shared by the whole app container regardless of
-        // which UserDefaults suite is passed in. Other tests/launches in the
-        // same run may have already fetched the real remote catalog, so clear
-        // that cache first to see the bundled-only state this test is about.
-        let cacheDirectory = try FileManager.default
-            .url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            .appendingPathComponent("AudioCatalog", isDirectory: true)
-        try? FileManager.default.removeItem(at: cacheDirectory)
-
+    func testBundledCatalogContainsOnlyTheTwoOfflineSittings() throws {
         let catalog = AudioCatalogService(defaults: UserDefaults(suiteName: UUID().uuidString)!)
-        XCTAssertTrue(catalog.tracks.isEmpty)
-        XCTAssertTrue(catalog.catalogProfiles.isEmpty)
+        XCTAssertEqual(Set(catalog.tracks.map(\.id)), ["group-long", "group-short"])
+        XCTAssertEqual(Set(catalog.catalogProfiles.map(\.id)), ["sitting-long", "sitting-short"])
+        XCTAssertTrue(catalog.tracks.allSatisfy { $0.downloadURL == nil && $0.bundledResource != nil })
+        XCTAssertTrue(catalog.tracks.allSatisfy { catalog.localURL(for: $0.id) != nil })
     }
 
     func testDeletingHistoryIsImmediateAndQueuesRemoteDeletion() throws {
@@ -153,6 +145,25 @@ import AVFoundation
         let operations = try store.operations(owner: "local")
         XCTAssertEqual(operations.filter { $0.kind == "deleteHistory" }.count, 1)
         XCTAssertTrue(operations.filter { $0.kind == "session" }.isEmpty)
+    }
+
+    func testTimelapseMetadataCanBeSavedAndDeletedWithoutDeletingHistory() throws {
+        let store = try makeTestStore()
+        let progress = SessionProgress(configuration: .init(minutes: 5), now: Date().addingTimeInterval(-400))
+        try store.complete(progress, owner: "local", share: false)
+        let url = URL(fileURLWithPath: "/tmp/example-timelapse.mp4")
+        try store.saveTimelapse(
+            sessionID: progress.id,
+            owner: "local",
+            result: TimelapseResult(url: url, frameCount: 240, duration: 10)
+        )
+
+        let media = try XCTUnwrap(store.timelapseMedia(sessionID: progress.id, owner: "local"))
+        XCTAssertEqual(media.filename, "example-timelapse.mp4")
+        XCTAssertEqual(media.frameCount, 240)
+        try store.deleteAllTimelapses(owner: "local")
+        XCTAssertNil(try store.timelapseMedia(sessionID: progress.id, owner: "local"))
+        XCTAssertEqual(try store.records(owner: "local").count, 1)
     }
 
 }
@@ -220,5 +231,46 @@ import AVFoundation
         XCTAssertEqual(cloud.uploaded.count, 1)
         XCTAssertEqual(try store.records(owner: "local").count, 1)
         XCTAssertTrue(try store.operations(owner: "local").isEmpty)
+    }
+}
+
+final class TimelapseVideoWriterTests: XCTestCase {
+    func testWriterProducesPlayableVideoFromSyntheticCameraFrames() async throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("timelapse-writer-\(UUID().uuidString).mp4")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let writer = try TimelapseVideoWriter(url: url, framesPerSecond: 24)
+        let attributes = [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary
+        var appended = 0
+        var attempts = 0
+        while appended < 48, attempts < 500 {
+            attempts += 1
+            var buffer: CVPixelBuffer?
+            XCTAssertEqual(
+                CVPixelBufferCreate(kCFAllocatorDefault, 320, 240, kCVPixelFormatType_32BGRA, attributes, &buffer),
+                kCVReturnSuccess
+            )
+            let pixelBuffer = try XCTUnwrap(buffer)
+            CVPixelBufferLockBaseAddress(pixelBuffer, [])
+            if let base = CVPixelBufferGetBaseAddress(pixelBuffer) {
+                memset(base, Int32(appended % 255), CVPixelBufferGetDataSize(pixelBuffer))
+            }
+            CVPixelBufferUnlockBaseAddress(pixelBuffer, [])
+            if try writer.append(pixelBuffer) {
+                appended += 1
+            } else {
+                try await Task.sleep(for: .milliseconds(5))
+            }
+        }
+        XCTAssertEqual(appended, 48)
+
+        let result = try await withCheckedThrowingContinuation { continuation in
+            writer.finish { continuation.resume(with: $0) }
+        }
+        XCTAssertEqual(result.frameCount, 48)
+        XCTAssertEqual(result.duration, 2, accuracy: 0.001)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: result.url.path))
+        let assetDuration = try await AVURLAsset(url: result.url).load(.duration).seconds
+        XCTAssertEqual(assetDuration, 2, accuracy: 0.1)
     }
 }

@@ -16,14 +16,14 @@
 	<string>0.5.0</string>
 	<key>CFBundleVersion</key>
 	<string>5</string>
-	<key>EvamorAudioCatalogURL</key>
-	<string>https://manuelpedrobm-hash.github.io/evamor-audio/catalog.json</string>
 	<key>CKSharingSupported</key>
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Ecuanimidad usa la cámara que elijas únicamente para crear un timelapse privado y sin sonido durante tu meditación.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

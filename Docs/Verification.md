@@ -53,3 +53,9 @@ Contrapartida: la app ya no trae ningún Group Sitting disponible sin conexión 
 ### Actualización del 18 de septiembre de 2026 (tarde)
 
 Se retiró por completo la función Permanecer (timelapse, Pulso de quietud/Vision, `MeditationMedia`, permisos de cámara y Fotos): las menciones a timelapse en la «Revisión del 17 de septiembre» de más arriba describen una función que ya no existe en la app. Se eliminaron `iOS/Services/TimelapseService.swift`, `iOS/Features/TimelapseViews.swift`, `iOS/Features/PaliQuotes.swift`, los campos de `SessionConfiguration`/`SessionProgress` asociados y el modelo `MeditationMedia`; `NSCameraUsageDescription` y `NSPhotoLibraryAddUsageDescription` se quitaron de `Info.plist`. Se regeneró el proyecto y se repitió toda la verificación disponible: build Debug del scheme `Meditacion`, `xcodebuild test` (31 pruebas unitarias/integración + 2 de interfaz, todo en verde), `swift test` (16/16), `Tools/verify_project.py` (72/72) y `Tools/verify_audio.py`/`verify_catalog.py`/`verify_core.py` sin cambios de resultado. También se instaló y probó en el iPhone 13 Pro físico (target `Evamor Local`).
+
+### Reconstrucción del 28 de septiembre de 2026
+
+La función Permanecer se rehízo desde cero en una copia aislada del proyecto. Usa una canalización de cámara sencilla, admite cámara delantera o trasera y no inicia la meditación hasta haber escrito el primer fotograma. Los vídeos se producen a 24 fps a partir de capturas espaciadas, pueden verse y compartirse al terminar y quedan asociados al historial local. Se añadieron pruebas que generan y validan un MP4 sintético.
+
+También se eliminó la dependencia del catálogo de GitHub. La aplicación contiene únicamente los sittings con instrucciones largas y cortas, disponibles sin conexión y con Metta extendido opcional. La verificación final aprobó 17 pruebas de núcleo (99.139 aserciones), 34 pruebas unitarias/integración, 2 pruebas de interfaz y 72 comprobaciones estáticas, sin fallos.

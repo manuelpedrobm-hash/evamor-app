@@ -89,19 +89,14 @@ La matriz exacta de envío, recepción y silencio está en `Docs/NotificationDel
 
 ## Catálogo de audios
 
-La app ya no incluye ningún Group Sitting embebido en el binario: los cinco disponibles se sirven desde el catálogo remoto configurado en `EvamorAudioCatalogURL` (`https://manuelpedrobm-hash.github.io/evamor-audio/catalog.json`, publicado en GitHub Pages). Puede recibir audios y perfiles nuevos sin publicar otra versión. Las descargas se validan por tamaño, SHA-256 y duración, se guardan para uso sin conexión y nunca sustituyen una copia válida por una descarga incompleta. Consulta `Docs/RemoteAudioCatalog.md` para publicar cambios en el catálogo.
+La app incluye los dos Group Sitting necesarios dentro de la propia instalación. No consulta ni descarga audios desde GitHub y ambos funcionan sin conexión. Cada sitting conserva sus cantos de apertura y cierre; **Metta extendido** puede añadirse al final de forma opcional.
 
 Los archivos facilitados son audio AAC dentro de contenedores MP4 con una extensión `.mp3` incorrecta. Se incorporan como `.m4a` válidos, sin recomprimir:
 
 - **Long Instructions** (Salila, Dehradun): 64 min 32,715 s; perfil de 65 minutos.
 - **Short Instructions** (Salila, Dehradun): 65 min 56,911 s; perfil de 66 minutos.
-- **Giri** (Igatpuri): 63 min 41,214 s; perfil de 64 minutos.
-- **Setu** (Chennai): 65 min 0,278 s; perfil de 65 minutos.
-- **Shikhara** (Dharamshala): 65 min 9,449 s; perfil de 65 minutos.
 
 La incorporación técnica no acredita derechos de distribución. Antes de TestFlight externo o App Store se necesita autorización escrita del titular; el usuario confirmó (17 de septiembre de 2026) contar con esa autorización para las grabaciones de S. N. Goenka.
-
-El registro de acceso a `manuelpedrobm-hash.github.io` lo conserva GitHub Pages según su propia política de privacidad; la app no aloja el catálogo por sí misma.
 
 ## Comportamiento local
 

@@ -1,6 +1,44 @@
 {
   "schemaVersion": 1,
-  "revision": "2026-09-18.1",
-  "tracks": [],
-  "profiles": []
+  "revision": "local-2026-09-27",
+  "tracks": [
+    {
+      "id": "group-long",
+      "title": "Sitting · instrucciones largas",
+      "detail": "Group Sitting completo de Salila (Dehradun), disponible sin conexión.",
+      "durationSeconds": 3872.715465,
+      "sha256": "e337872c8a683b6461586b37612be4f4f94dac8707bd3141185eed45cb1ed8a1",
+      "byteCount": 62678565,
+      "bundledResource": "group-long.m4a",
+      "standalone": true
+    },
+    {
+      "id": "group-short",
+      "title": "Sitting · instrucciones cortas",
+      "detail": "Group Sitting completo de Salila (Dehradun), disponible sin conexión.",
+      "durationSeconds": 3956.911020,
+      "sha256": "44162d3424f029175710e541e0d3778210a0f4f40afd54909b685875d4ce5df4",
+      "byteCount": 64040266,
+      "bundledResource": "group-short.m4a",
+      "standalone": true
+    }
+  ],
+  "profiles": [
+    {
+      "id": "sitting-long",
+      "name": "Sitting con instrucciones largas",
+      "detail": "65 minutos · audio local",
+      "minutes": 65,
+      "trackID": "group-long",
+      "builtInAudio": []
+    },
+    {
+      "id": "sitting-short",
+      "name": "Sitting con instrucciones cortas",
+      "detail": "66 minutos · audio local",
+      "minutes": 66,
+      "trackID": "group-short",
+      "builtInAudio": []
+    }
+  ]
 }
