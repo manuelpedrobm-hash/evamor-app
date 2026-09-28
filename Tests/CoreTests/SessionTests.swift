@@ -9,7 +9,6 @@ final class SessionTests: XCTestCase {
     }
     func testDefaultAndEveryAudioCombinationPreservesDuration() {
         XCTAssertEqual(SessionConfiguration().minutes, 60)
-        XCTAssertFalse(SessionConfiguration().timelapse.isEnabled)
         for mask in 0..<16 {
             let audio = Set(AudioKind.allCases.enumerated().filter { mask & (1 << $0.offset) != 0 }.map(\.element))
             let config = SessionConfiguration(minutes: 5, audio: audio)
@@ -25,22 +24,8 @@ final class SessionTests: XCTestCase {
         let legacy = Data(#"{"minutes":60,"audio":[]}"#.utf8)
         let decoded = try JSONDecoder().decode(SessionConfiguration.self, from: legacy)
         XCTAssertEqual(decoded.minutes, 60)
-        XCTAssertEqual(decoded.timelapse, TimelapseConfiguration())
-    }
-    func testTimelapseConfigurationAndSamplingPlan() throws {
-        let configuration = SessionConfiguration(
-            minutes: 60,
-            timelapse: .init(isEnabled: true, camera: .front, outputSeconds: 30)
-        )
-        XCTAssertEqual(try JSONDecoder().decode(SessionConfiguration.self, from: JSONEncoder().encode(configuration)), configuration)
-
-        let fiveMinutes = TimelapsePlan(sourceSeconds: 300, outputSeconds: 30)
-        XCTAssertEqual(fiveMinutes.captureInterval, 300.0 / 720.0, accuracy: 0.0001)
-        XCTAssertEqual(fiveMinutes.estimatedOutputSeconds, 30, accuracy: 0.1)
-
-        let eightHours = TimelapsePlan(sourceSeconds: 28_800, outputSeconds: 20)
-        XCTAssertEqual(eightHours.captureInterval, 60, accuracy: 0.0001)
-        XCTAssertEqual(eightHours.estimatedFrameCount, 480)
+        let previousVersion = Data(#"{"minutes":60,"audio":[],"timelapse":{"isEnabled":true,"camera":"front","outputSeconds":30}}"#.utf8)
+        XCTAssertEqual(try JSONDecoder().decode(SessionConfiguration.self, from: previousVersion), decoded)
     }
     func testCompleteSittingUsesExactRecordingWithoutExtraMettaOrSilence() {
         let track = CatalogAudioReference(id: "guided", title: "Guided", durationSeconds: 3_872.715465)

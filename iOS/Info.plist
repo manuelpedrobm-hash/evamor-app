@@ -22,8 +22,6 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>Ecuanimidad usa la cámara que elijas únicamente para crear un timelapse privado y sin sonido durante tu meditación.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

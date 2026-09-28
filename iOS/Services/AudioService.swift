@@ -2,6 +2,7 @@ import AVFoundation
 import MeditationCore
 
 @MainActor protocol MeditationAudioPlayer {
+    var isPlaying: Bool { get }
     func play(_ phase: SessionPhase, offset: Double) async throws
     func playTimeline(_ phases: [SessionPhase], offset: Double) async throws
     func stop()

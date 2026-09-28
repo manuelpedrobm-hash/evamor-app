@@ -3,7 +3,6 @@ import SwiftData
 import CloudKit
 import Observation
 import MeditationCore
-import UIKit
 
 @MainActor @Observable final class AppModel {
     let store: LocalStore
@@ -12,7 +11,6 @@ import UIKit
     let engine: SessionEngine
     let sync: SyncService
     let catalog: AudioCatalogService
-    let timelapse = TimelapseRecorder()
     let owner = "local"
     var configuration = SessionConfiguration()
     var reminders = ReminderSettings()
@@ -20,6 +18,7 @@ import UIKit
     var socialNotifications = false
     var displayName = ""
     var cloudAvailable = false
+    var cloudPreparationStatus: String?
     var notificationStatus = "Comprobando…"
     var records: [SessionRecord] = []
     var friends: [RemoteFriend] = []
@@ -29,13 +28,6 @@ import UIKit
     var completionTitle = "Sé feliz"
     var completionSubtitle = "Tu sesión se ha guardado"
     var showCompletionCelebration = false
-    var showTimelapseSetup = false
-    var isStartingTimelapse = false
-    var isFinalizingTimelapse = false
-    var timelapseInterrupted = false
-    var lastTimelapseURL: URL?
-    var lastTimelapseSessionID: String?
-    private var activeTimelapseSessionID: String?
 
     init(container: ModelContainer) {
         store = LocalStore(container: container)
@@ -53,7 +45,6 @@ import UIKit
         engine.onPartialSaved = { [weak self] sessionID, elapsed in self?.handlePartialSaved(sessionID: sessionID, elapsed: elapsed) }
         sync.onRefresh = { [weak self] in self?.reload() }
         reload(); engine.restore()
-        timelapseInterrupted = engine.progress?.configuration.timelapse.isEnabled == true
 #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-resetUITestSession") {
             engine.cancel()
@@ -113,26 +104,11 @@ import UIKit
         consumePendingQuickStart()
     }
 
-    func background() {
-        if showTimelapseSetup {
-            showTimelapseSetup = false
-            timelapse.cancel()
-        }
-        if activeTimelapseSessionID != nil && engine.progress != nil && !isFinalizingTimelapse {
-            activeTimelapseSessionID = nil
-            timelapseInterrupted = true
-            timelapse.cancel()
-        }
-    }
-
     func beginMeditation() async {
-        guard engine.progress == nil, !showTimelapseSetup, !isStartingTimelapse else { return }
+        guard engine.progress == nil else { return }
         completionMessage = false
         completionTitle = "Sé feliz"
         completionSubtitle = "Tu sesión se ha guardado"
-        lastTimelapseURL = nil
-        lastTimelapseSessionID = nil
-        timelapseInterrupted = false
         if let reference = configuration.catalogAudio {
             guard let track = catalog.track(id: reference.id) else {
                 error = "El audio de este perfil ya no está en el catálogo."
@@ -141,79 +117,26 @@ import UIKit
             do { _ = try await catalog.download(track) }
             catch { self.error = error.localizedDescription; return }
         }
-        guard configuration.timelapse.isEnabled else {
-            engine.start(configuration, owner: owner)
-            return
-        }
-        guard await TimelapseRecorder.requestCameraAccess() else {
-            error = TimelapseError.cameraPermissionDenied.localizedDescription
-            return
-        }
-        do {
-            try await timelapse.prepare(camera: configuration.timelapse.camera)
-            showTimelapseSetup = true
-        } catch {
-            self.error = error.localizedDescription
-        }
-    }
-
-    func confirmTimelapseStart() async {
-        guard !isStartingTimelapse else { return }
-        isStartingTimelapse = true
-        defer { isStartingTimelapse = false }
-        let sessionID = UUID().uuidString.lowercased()
-        do {
-            try await timelapse.startRecording(
-                sessionID: sessionID,
-                sourceSeconds: configuration.totalSeconds,
-                outputSeconds: configuration.timelapse.outputSeconds
-            )
-            guard showTimelapseSetup else {
-                timelapse.cancel()
-                return
-            }
-            engine.start(configuration, owner: owner, id: sessionID)
-            guard engine.progress?.id == sessionID else { throw TimelapseError.cannotCreateVideo }
-            activeTimelapseSessionID = sessionID
-            showTimelapseSetup = false
-        } catch is CancellationError {
-            // Closing the setup while the first frame is pending is intentional.
-        } catch {
-            timelapse.cancel()
-            if showTimelapseSetup { self.error = error.localizedDescription }
-        }
-    }
-
-    func cancelTimelapseSetup() {
-        guard showTimelapseSetup, !isStartingTimelapse, activeTimelapseSessionID == nil else { return }
-        timelapse.cancel()
-        showTimelapseSetup = false
-        isStartingTimelapse = false
+        engine.start(configuration, owner: owner)
     }
 
     func pauseSession() {
         engine.pause()
-        if activeTimelapseSessionID != nil && engine.isPaused { timelapse.pause() }
     }
 
     func resumeSession() async {
         engine.resume()
-        if activeTimelapseSessionID != nil && !engine.isPaused { timelapse.resume() }
     }
 
     func endSessionEarly() { engine.finishEarly() }
-
-    func timelapseURL(for record: SessionRecord) -> URL? {
-        guard let media = try? store.timelapseMedia(sessionID: record.id, owner: owner) else { return nil }
-        return TimelapseStorage.existingURL(filename: media.filename)
-    }
 
     private func handleCompletion(sessionID: String) {
         completionMessage = true
         completionTitle = "Sé feliz"
         completionSubtitle = "Tu sesión se ha guardado"
         reload()
-        presentSavedSession(sessionID: sessionID)
+        showCompletionCelebration = true
+        Task { await finishCompletionWork() }
     }
 
     private func handlePartialSaved(sessionID: String, elapsed: Double) {
@@ -221,34 +144,8 @@ import UIKit
         completionTitle = "Práctica guardada"
         completionSubtitle = "Has meditado \(Self.elapsedLabel(elapsed)). Queda en el historial como parcial."
         reload()
-        presentSavedSession(sessionID: sessionID)
-    }
-
-    private func presentSavedSession(sessionID: String) {
-        guard activeTimelapseSessionID == sessionID else {
-            showCompletionCelebration = true
-            Task { await finishCompletionWork() }
-            return
-        }
-        isFinalizingTimelapse = true
-        let backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Finalizar timelapse")
-        Task {
-            defer {
-                if backgroundTask != .invalid { UIApplication.shared.endBackgroundTask(backgroundTask) }
-            }
-            do {
-                let result = try await timelapse.finish()
-                try store.saveTimelapse(sessionID: sessionID, owner: owner, result: result)
-                lastTimelapseURL = result.url
-                lastTimelapseSessionID = sessionID
-            } catch {
-                self.error = "La práctica se ha guardado, pero el timelapse no pudo finalizarse. \(error.localizedDescription)"
-            }
-            activeTimelapseSessionID = nil
-            isFinalizingTimelapse = false
-            showCompletionCelebration = true
-            await finishCompletionWork()
-        }
+        showCompletionCelebration = true
+        Task { await finishCompletionWork() }
     }
 
     private static func elapsedLabel(_ seconds: Double) -> String {
@@ -295,8 +192,7 @@ import UIKit
         let configuration = SessionConfiguration(
             minutes: profile.minutes,
             audio: audio,
-            catalogAudio: track?.reference,
-            timelapse: self.configuration.timelapse
+            catalogAudio: track?.reference
         )
         guard configuration.isValid else {
             error = "El perfil no cabe en la duración indicada por el catálogo."
@@ -319,7 +215,6 @@ import UIKit
         defaults.removeObject(forKey: "pendingQuickStartMinutes")
         var updated = configuration
         updated.minutes = min(480, max(5, minutes))
-        updated.timelapse.isEnabled = false
         guard updated.isValid else { return }
         saveConfiguration(updated)
         engine.start(updated, owner: owner)
@@ -372,6 +267,18 @@ import UIKit
         notificationStatus = await notifications.authorizationDescription()
     }
 
+    func prepareCloudForFriends() async {
+        do {
+            guard await cloud.available else { throw CloudError.accountUnavailable }
+            _ = try await cloud.prepareShare(displayName: displayName)
+            cloudPreparationStatus = "Canal privado preparado en iCloud. Ya puedes invitar a un amigo."
+            await refreshDiagnostics()
+        } catch {
+            cloudPreparationStatus = nil
+            self.error = error.localizedDescription
+        }
+    }
+
     func sendTestNotification() async {
         do {
             guard try await notifications.requestPermission() else {
@@ -385,43 +292,11 @@ import UIKit
 
     func deleteHistory() async {
         do {
-            for filename in try store.timelapseFilenames(owner: owner) {
-                try TimelapseStorage.remove(filename: filename)
-            }
             try store.deleteHistory(owner: owner)
-            lastTimelapseURL = nil
-            lastTimelapseSessionID = nil
             reload()
             await sync.sync()
             reload()
         } catch { self.error = error.localizedDescription }
-    }
-
-    func deleteAllTimelapses() {
-        do {
-            for filename in try store.timelapseFilenames(owner: owner) {
-                try TimelapseStorage.remove(filename: filename)
-            }
-            try store.deleteAllTimelapses(owner: owner)
-            lastTimelapseURL = nil
-            lastTimelapseSessionID = nil
-        } catch {
-            self.error = error.localizedDescription
-        }
-    }
-
-    func deleteTimelapse(sessionID: String) {
-        do {
-            guard let media = try store.timelapseMedia(sessionID: sessionID, owner: owner) else { return }
-            try TimelapseStorage.remove(filename: media.filename)
-            try store.deleteTimelapse(sessionID: sessionID, owner: owner)
-            if lastTimelapseSessionID == sessionID {
-                lastTimelapseURL = nil
-                lastTimelapseSessionID = nil
-            }
-        } catch {
-            self.error = error.localizedDescription
-        }
     }
 
     func toggleMute(_ friend: RemoteFriend) {

@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import UIKit
 import MeditationCore
 
 @MainActor @Observable final class SessionEngine {
@@ -39,7 +38,6 @@ import MeditationCore
         } catch { self.error = "No se pudo iniciar la sesión: \(error.localizedDescription)" }
     }
     private func activate() {
-        UIApplication.shared.isIdleTimerDisabled = true
         tick(); timer?.invalidate()
         guard progress != nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
@@ -50,8 +48,14 @@ import MeditationCore
         Task { do { try await notifications.scheduleEnd(progress) } catch { self.error = "No se pudo programar el aviso de finalización." } }
     }
     func foreground() {
-        playbackTask?.cancel(); playingIndex = nil; tick()
-        if progress != nil { UIApplication.shared.isIdleTimerDisabled = true; scheduleEnd() }
+        // Unlocking must not cut off a chant that is still playing. If iOS
+        // actually stopped playback, restart at the elapsed position.
+        if progress != nil && !isPaused && !audio.isPlaying {
+            playbackTask?.cancel()
+            playingIndex = nil
+        }
+        tick()
+        if progress != nil { scheduleEnd() }
     }
     func tick() {
         guard let progress else { return }
@@ -145,6 +149,6 @@ import MeditationCore
     }
     private func finish() {
         timer?.invalidate(); timer = nil; playbackTask?.cancel(); playbackTask = nil; audio.stop(); notifications.cancelEnd()
-        progress = nil; playingIndex = nil; UIApplication.shared.isIdleTimerDisabled = false
+        progress = nil; playingIndex = nil
     }
 }

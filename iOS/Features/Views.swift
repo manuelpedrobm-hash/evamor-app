@@ -29,22 +29,10 @@ struct RootView: View {
             if model.showCompletionCelebration {
                 CompletionCelebrationView(
                     title: model.completionTitle,
-                    subtitle: model.completionSubtitle,
-                    timelapseURL: model.lastTimelapseURL,
-                    timelapseSessionID: model.lastTimelapseSessionID
+                    subtitle: model.completionSubtitle
                 ) { model.showCompletionCelebration = false }
                     .transition(.opacity.combined(with: .scale(scale: 1.02)))
                     .zIndex(10)
-            }
-            if model.isFinalizingTimelapse {
-                ZStack {
-                    Palette.night.opacity(0.82).ignoresSafeArea()
-                    VStack(spacing: 16) {
-                        ProgressView().tint(.white).controlSize(.large)
-                        Text("Preparando tu timelapse…").foregroundStyle(.white)
-                    }
-                }
-                .zIndex(9)
             }
             if !hasCompletedOnboarding {
                 OnboardingView()
@@ -55,17 +43,10 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.45), value: model.showCompletionCelebration)
         .tint(Palette.green)
         .fullScreenCover(isPresented: Binding(
-            get: { model.showTimelapseSetup || model.engine.progress != nil },
+            get: { model.engine.progress != nil },
             set: { _ in }
         )) {
-            Group {
-                if model.showTimelapseSetup {
-                    TimelapseSetupView()
-                } else {
-                    ActiveSessionView()
-                }
-            }
-            .interactiveDismissDisabled()
+            ActiveSessionView().interactiveDismissDisabled()
         }
         .alert("No se pudo completar la acción", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("Aceptar") { model.error = nil }
@@ -77,11 +58,8 @@ struct CompletionCelebrationView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathing = false
     @State private var contentVisible = false
-    @State private var showingTimelapse = false
     let title: String
     let subtitle: String
-    let timelapseURL: URL?
-    let timelapseSessionID: String?
     let dismiss: () -> Void
 
     var body: some View {
@@ -127,16 +105,6 @@ struct CompletionCelebrationView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity)
                     .opacity(contentVisible ? 1 : 0)
-                if timelapseURL != nil {
-                    Button("Ver timelapse", systemImage: "play.rectangle.fill") {
-                        showingTimelapse = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    .tint(.white)
-                    .foregroundStyle(Palette.green)
-                    .opacity(contentVisible ? 1 : 0)
-                }
                 Button("Continuar") { dismiss() }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)
@@ -152,18 +120,12 @@ struct CompletionCelebrationView: View {
             if !reduceMotion {
                 withAnimation(.easeInOut(duration: 2.6).repeatForever(autoreverses: true)) { breathing = true }
             }
-            guard timelapseURL == nil else { return }
 #if DEBUG
             guard !ProcessInfo.processInfo.arguments.contains("-showCompletionPreview") else { return }
 #endif
             try? await Task.sleep(for: .seconds(7))
             guard !Task.isCancelled else { return }
             dismiss()
-        }
-        .sheet(isPresented: $showingTimelapse) {
-            if let timelapseURL, let timelapseSessionID {
-                NavigationStack { TimelapsePlaybackView(url: timelapseURL, sessionID: timelapseSessionID) }
-            }
         }
     }
 }
@@ -233,14 +195,6 @@ struct MeditateView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
-                        if model.configuration.timelapse.isEnabled {
-                            Label(
-                                "Timelapse · cámara \(model.configuration.timelapse.camera.title.lowercased()) · sin sonido",
-                                systemImage: "video.fill"
-                            )
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(Palette.green)
-                        }
                     }
                     .padding(.horizontal, 22)
                     .padding(.vertical, 16)
@@ -546,26 +500,6 @@ struct ConfigurationView: View {
                         showingCatalog = true
                     }
                 }
-                Section {
-                    Toggle("Crear timelapse", isOn: $configuration.timelapse.isEnabled)
-                        .accessibilityHint("Usa la cámara sin grabar sonido")
-                    if configuration.timelapse.isEnabled {
-                        Picker("Cámara", selection: $configuration.timelapse.camera) {
-                            ForEach(TimelapseCamera.allCases, id: \.self) { camera in
-                                Text(camera.title).tag(camera)
-                            }
-                        }
-                        Picker("Duración máxima del vídeo", selection: $configuration.timelapse.outputSeconds) {
-                            ForEach(TimelapseConfiguration.allowedOutputSeconds, id: \.self) { seconds in
-                                Text("\(seconds) segundos").tag(seconds)
-                            }
-                        }
-                    }
-                } header: {
-                    Text("Timelapse")
-                } footer: {
-                    Text("Opcional y sin micrófono. Mantén la pantalla encendida durante toda la grabación. Si bloqueas el iPhone o sales de la app, se descarta el timelapse; la meditación y el audio continúan.")
-                }
                 if !configuration.isValid { Text("Selecciona al menos \(configuration.minimumMinutes) minutos para incluir estos audios.").foregroundStyle(.red) }
             }
             .sheet(isPresented: $showingCatalog) { AudioCatalogView() }
@@ -637,18 +571,6 @@ struct ActiveSessionView: View {
                             .foregroundStyle(.white.opacity(0.48))
                     }
                     .padding(.horizontal, 20)
-                }
-                if model.engine.progress?.configuration.timelapse.isEnabled == true {
-                    if model.timelapseInterrupted {
-                        Label("Timelapse cancelado; la meditación y el audio continúan", systemImage: "video.slash")
-                            .foregroundStyle(.white.opacity(0.68))
-                    } else {
-                        Label(
-                            model.engine.isPaused ? "Timelapse en pausa" : "Timelapse grabando · mantén la pantalla encendida",
-                            systemImage: model.engine.isPaused ? "pause.circle.fill" : "record.circle"
-                        )
-                        .foregroundStyle(model.engine.isPaused ? .white.opacity(0.62) : Palette.limestone)
-                    }
                 }
                 Spacer()
                 Button(model.engine.isPaused ? "Reanudar" : "Pausar", systemImage: model.engine.isPaused ? "play.fill" : "pause.fill") {
@@ -773,16 +695,6 @@ struct HistoryView: View {
                                         + (record.configuration.catalogAudio.map { [$0.title] } ?? [])
                                     return names.isEmpty ? "Sin audio" : names.joined(separator: ", ")
                                 }())
-                                if let url = model.timelapseURL(for: record) {
-                                    NavigationLink {
-                                        TimelapsePlaybackView(url: url, sessionID: record.id)
-                                    } label: {
-                                        Label("Ver timelapse", systemImage: "play.rectangle.fill")
-                                    }
-                                    ShareLink(item: url, preview: SharePreview("Mi práctica en Ecuanimidad")) {
-                                        Label("Compartir una copia", systemImage: "square.and.arrow.up")
-                                    }
-                                }
                             }.navigationTitle("Sesión")
                         } label: {
                             HStack {
@@ -1030,7 +942,6 @@ struct SettingsView: View {
     @State private var privacySheet = false
     @State private var exporting = false
     @State private var deleteConfirmation = false
-    @State private var deleteTimelapsesConfirmation = false
     @State private var showingCatalog = false
     @State private var exportDocument = HistoryExportDocument(records: [])
     var body: some View {
@@ -1056,6 +967,13 @@ struct SettingsView: View {
             Section("Sincronización") {
                 LabeledContent("iCloud", value: model.cloudAvailable ? "Disponible" : "No disponible")
                 LabeledContent("Notificaciones", value: model.notificationStatus)
+                Button("Preparar canal de amigos en iCloud", systemImage: "person.2") {
+                    Task { await model.prepareCloudForFriends() }
+                }
+                .disabled(!model.cloudAvailable)
+                if let status = model.cloudPreparationStatus {
+                    Text(status).font(.footnote).foregroundStyle(.secondary)
+                }
                 LabeledContent("Pendientes", value: "\(model.sync.pending)")
                 if let date = model.sync.lastSync { LabeledContent("Última sincronización", value: date.formatted(date: .abbreviated, time: .shortened)) }
                 if let error = model.sync.error { Text(error).font(.footnote).foregroundStyle(.secondary) }
@@ -1078,15 +996,6 @@ struct SettingsView: View {
                 Text("Tus datos")
             } footer: {
                 Text("El borrado es inmediato en este iPhone y se aplica en iCloud al recuperar conexión. No elimina amigos ni preferencias.")
-            }
-            Section {
-                Button("Borrar todos los timelapses", systemImage: "video.slash", role: .destructive) {
-                    deleteTimelapsesConfirmation = true
-                }
-            } header: {
-                Text("Timelapses")
-            } footer: {
-                Text("Los vídeos solo se guardan en este iPhone. Borrarlos no elimina las sesiones del historial.")
             }
             Section("Privacidad y ayuda") {
                 Button("Cómo funciona tu privacidad", systemImage: "hand.raised") { privacySheet = true }
@@ -1120,12 +1029,6 @@ struct SettingsView: View {
         } message: {
             Text("Las sesiones y estadísticas se eliminarán. Esta acción no se puede deshacer.")
         }
-        .confirmationDialog("¿Borrar todos los timelapses?", isPresented: $deleteTimelapsesConfirmation, titleVisibility: .visible) {
-            Button("Borrar vídeos", role: .destructive) { model.deleteAllTimelapses() }
-            Button("Cancelar", role: .cancel) { }
-        } message: {
-            Text("Las sesiones seguirán apareciendo en el historial, pero los vídeos no se pueden recuperar.")
-        }
     }
 }
 
@@ -1139,7 +1042,6 @@ struct PrivacySummaryView: View {
                     PrivacyRow(icon: "iphone", title: "En este iPhone", detail: "Temporizador, configuración e historial se guardan localmente y funcionan sin conexión.")
                     PrivacyRow(icon: "icloud", title: "En iCloud", detail: "Si está disponible, las sesiones se sincronizan en tu base privada. Las invitaciones comparten únicamente señales mínimas de práctica.")
                     PrivacyRow(icon: "eye.slash", title: "Sin seguimiento", detail: "No hay publicidad, analítica de terceros, contactos, ubicación ni perfiles comerciales.")
-                    PrivacyRow(icon: "video", title: "Timelapse privado", detail: "La cámara solo se usa si activas el timelapse. No se graba sonido y el vídeo permanece en este iPhone hasta que decidas compartirlo o borrarlo.")
                 } header: {
                     Text("Qué ocurre con tus datos")
                 }

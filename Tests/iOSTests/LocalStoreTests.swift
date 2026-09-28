@@ -11,6 +11,7 @@ import AVFoundation
 }
 
 @MainActor private final class SilentTestAudioPlayer: MeditationAudioPlayer {
+    var isPlaying: Bool { false }
     func play(_ phase: SessionPhase, offset: Double) async throws {}
     func playTimeline(_ phases: [SessionPhase], offset: Double) async throws {}
     func stop() {}
@@ -153,33 +154,6 @@ import AVFoundation
         XCTAssertTrue(operations.filter { $0.kind == "session" }.isEmpty)
     }
 
-    func testTimelapseMetadataCanBeSavedAndDeletedWithoutDeletingHistory() throws {
-        let store = try makeTestStore()
-        let progress = SessionProgress(configuration: .init(minutes: 5), now: Date().addingTimeInterval(-400))
-        try store.complete(progress, owner: "local", share: false)
-        let url = URL(fileURLWithPath: "/tmp/example-timelapse.mp4")
-        try store.saveTimelapse(
-            sessionID: progress.id,
-            owner: "local",
-            result: TimelapseResult(url: url, frameCount: 240, duration: 10)
-        )
-
-        let media = try XCTUnwrap(store.timelapseMedia(sessionID: progress.id, owner: "local"))
-        XCTAssertEqual(media.filename, "example-timelapse.mp4")
-        XCTAssertEqual(media.frameCount, 240)
-        try store.deleteTimelapse(sessionID: progress.id, owner: "local")
-        XCTAssertNil(try store.timelapseMedia(sessionID: progress.id, owner: "local"))
-        XCTAssertEqual(try store.records(owner: "local").count, 1)
-        try store.saveTimelapse(
-            sessionID: progress.id,
-            owner: "local",
-            result: TimelapseResult(url: url, frameCount: 240, duration: 10)
-        )
-        try store.deleteAllTimelapses(owner: "local")
-        XCTAssertNil(try store.timelapseMedia(sessionID: progress.id, owner: "local"))
-        XCTAssertEqual(try store.records(owner: "local").count, 1)
-    }
-
     func testSittingCompletesWhenAudioEndsWithoutWaitingForForegroundTimer() throws {
         let store = try makeTestStore()
         let track = CatalogAudioReference(id: "sitting", title: "Sitting", durationSeconds: 3_872.715465)
@@ -279,46 +253,5 @@ import AVFoundation
         XCTAssertEqual(cloud.uploaded.count, 1)
         XCTAssertEqual(try store.records(owner: "local").count, 1)
         XCTAssertTrue(try store.operations(owner: "local").isEmpty)
-    }
-}
-
-final class TimelapseVideoWriterTests: XCTestCase {
-    func testWriterProducesPlayableVideoFromSyntheticCameraFrames() async throws {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("timelapse-writer-\(UUID().uuidString).mp4")
-        defer { try? FileManager.default.removeItem(at: url) }
-        let writer = try TimelapseVideoWriter(url: url, framesPerSecond: 24)
-        let attributes = [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary
-        var appended = 0
-        var attempts = 0
-        while appended < 48, attempts < 500 {
-            attempts += 1
-            var buffer: CVPixelBuffer?
-            XCTAssertEqual(
-                CVPixelBufferCreate(kCFAllocatorDefault, 320, 240, kCVPixelFormatType_32BGRA, attributes, &buffer),
-                kCVReturnSuccess
-            )
-            let pixelBuffer = try XCTUnwrap(buffer)
-            CVPixelBufferLockBaseAddress(pixelBuffer, [])
-            if let base = CVPixelBufferGetBaseAddress(pixelBuffer) {
-                memset(base, Int32(appended % 255), CVPixelBufferGetDataSize(pixelBuffer))
-            }
-            CVPixelBufferUnlockBaseAddress(pixelBuffer, [])
-            if try writer.append(pixelBuffer) {
-                appended += 1
-            } else {
-                try await Task.sleep(for: .milliseconds(5))
-            }
-        }
-        XCTAssertEqual(appended, 48)
-
-        let result = try await withCheckedThrowingContinuation { continuation in
-            writer.finish { continuation.resume(with: $0) }
-        }
-        XCTAssertEqual(result.frameCount, 48)
-        XCTAssertEqual(result.duration, 2, accuracy: 0.001)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: result.url.path))
-        let assetDuration = try await AVURLAsset(url: result.url).load(.duration).seconds
-        XCTAssertEqual(assetDuration, 2, accuracy: 0.1)
     }
 }

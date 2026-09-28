@@ -63,3 +63,8 @@ También se eliminó la dependencia del catálogo de GitHub. La aplicación cont
 ### Revisión del 28 de septiembre de 2026
 
 Se unificó la presentación del encuadre y la sesión para que el cierre de la vista de cámara no cancele la grabación. Los sittings ahora usan exactamente la duración del archivo: incluyen sus cantos y Metta, sin una pista adicional ni silencio de redondeo. El final del audio activa el guardado de la sesión aunque el teléfono esté bloqueado. Cada timelapse puede borrarse desde su reproductor sin eliminar la práctica del historial. Tras una prueba en iPhone, se estableció que bloquear la pantalla o salir de la app cancela y descarta el vídeo sin interrumpir la meditación ni el audio; esta condición se indica en la interfaz.
+# Actualización del 28 de septiembre: audio y avisos entre amigos
+
+Tras reproducir en iPhone un fallo de vídeo al bloquear la pantalla y una pausa del audio, se retiró de nuevo toda la grabación de timelapse de la aplicación: no hay controles, cámara ni permiso de cámara. Solo se conserva el modelo de datos antiguo para abrir instalaciones existentes sin borrar sus metadatos. El audio no se reinicia al desbloquear si ya está reproduciéndose y la pantalla puede bloquearse automáticamente. La versión `Evamor Local` se instaló para probar el audio; la prueba real bloqueada todavía depende de Manuel.
+
+La prueba completa de avisos entre amigos requiere el target `Meditacion` con CloudKit/APNs y un equipo del Apple Developer Program. La única firma disponible en este Mac es un equipo personal: Xcode rechaza esas capacidades. Véase `Docs/PruebaAmigosCloudKit.md` para el procedimiento A → B y TestFlight.
